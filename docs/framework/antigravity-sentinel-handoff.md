@@ -32,6 +32,13 @@
 11. Updated `docs/framework/antigravity-sentinel.md`.
 12. Updated `packages/installer/src/wizard/ide-config-generator.js` to generate `.antigravity/hooks.json`.
 13. Updated `tests/unit/wizard/ide-config-generator.test.js` for hook generation coverage.
+14. Added `.aiox-core/core/sentinel/state-writer.js`.
+15. Updated `.aiox-core/core/orchestration/context-manager.js` to persist Sentinel state and command-aware handoffs.
+16. Updated `.aiox-core/core/orchestration/checklist-runner.js` with Sentinel mode.
+17. Updated `.aiox-core/core/orchestration/workflow-orchestrator.js` to pass phase commands into handoffs.
+18. Added `tests/core/orchestration/checklist-runner.test.js`.
+19. Updated `tests/core/orchestration/context-manager-handoff.test.js`.
+20. Updated `tests/core/orchestration/context-manager.test.js`.
 
 ## Implemented Behavior
 
@@ -51,6 +58,9 @@
 14. Isolation CLI defaults to dry-run.
 15. Isolation apply requires exact `project_id` confirmation.
 16. Isolation apply creates project-scoped backup and marker-only inactive directories.
+17. Runtime handoffs include `next_agent` and `next_command`.
+18. Runtime writes `.aiox/sentinel/state.json`.
+19. ChecklistRunner Sentinel mode blocks manual checklist items without deterministic validation.
 
 ## Latest Dry-Run Result
 
@@ -64,11 +74,9 @@
 
 ## Pending Work
 
-1. Write `.aiox/sentinel/state.json` from runtime workflow state.
-2. Add Sentinel mode to `ChecklistRunner`.
-3. Extend `ContextManager` handoff package with `next_command`.
-4. Execute real backup/move of inactive engines only after explicit user confirmation naming `.codex`, `.claude`, `.cursor` and `.gemini`.
-5. Run focused Sentinel tests and existing AntiGravity tests after each integration change.
+1. Execute real backup/move of inactive engines only after explicit user confirmation naming `.codex`, `.claude`, `.cursor` and `.gemini`.
+2. Validate AntiGravity end-to-end inside the isolated workspace.
+3. Run focused Sentinel tests and existing AntiGravity tests after each integration change.
 
 ## Resume Instructions
 

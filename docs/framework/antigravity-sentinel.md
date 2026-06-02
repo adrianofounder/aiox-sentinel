@@ -51,6 +51,15 @@ The deterministic implementation lives in `.aiox-core/core/sentinel/`.
 9. `packages/installer/src/wizard/ide-config-generator.js`
    Generates `.antigravity/hooks.json` and points `.antigravity/antigravity.json` at the Sentinel hook runner.
 
+10. `.aiox-core/core/sentinel/state-writer.js`
+    Builds and writes `.aiox/sentinel/state.json` from runtime workflow handoffs.
+
+11. `.aiox-core/core/orchestration/context-manager.js`
+    Persists `next_agent`, `next_command`, command metadata and the Sentinel state contract whenever a phase handoff is saved.
+
+12. `.aiox-core/core/orchestration/checklist-runner.js`
+    Supports Sentinel mode. Manual checklist items no longer pass automatically when Sentinel mode is enabled.
+
 ## Hook Contract
 
 AntiGravity `PreToolUse` should call:
@@ -88,6 +97,8 @@ Expected shape:
   }
 }
 ```
+
+This file is written by `ContextManager.savePhaseOutput()` after a workflow phase produces a handoff.
 
 ## Physical Isolation Contract
 
@@ -145,10 +156,8 @@ The apply path:
 
 ## Pending
 
-1. Extend `ContextManager` to write `next_command` directly into runtime handoff artifacts.
-2. Extend `ChecklistRunner` with Sentinel mode so manual items do not pass automatically.
-3. Generate `.aiox/sentinel/state.json` from workflow runtime state.
-4. Execute real engine isolation only after explicit user confirmation naming concrete targets.
+1. Execute real engine isolation only after explicit user confirmation naming concrete targets.
+2. Validate AntiGravity end-to-end in an isolated workspace after engine directories are moved.
 
 ## Test Coverage
 
@@ -173,3 +182,6 @@ Covered gates:
 15. Wrong agent blocks.
 16. Wrong command blocks.
 17. HUD lists workflow steps and next handoff.
+18. Runtime handoff includes `next_agent` and `next_command`.
+19. Runtime writes `.aiox/sentinel/state.json`.
+20. ChecklistRunner Sentinel mode blocks manual auto-pass.

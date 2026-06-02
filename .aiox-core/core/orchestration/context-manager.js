@@ -17,6 +17,12 @@
 const fs = require('fs-extra');
 const path = require('path');
 const { isPlainObject } = require('../config/merge-utils');
+const {
+  buildSentinelState,
+  normalizeAgent,
+  normalizeCommand,
+  writeSentinelState,
+} = require('../sentinel/state-writer');
 
 function mergeMetadata(target, source) {
   const base = isPlainObject(target) ? target : {};
@@ -59,6 +65,7 @@ class ContextManager {
     this.statePath = path.join(this.stateDir, `${workflowId}.json`);
     this.handoffDir = path.join(this.stateDir, 'handoffs');
     this.confidenceDir = path.join(this.stateDir, 'confidence');
+    this.sentinelActiveEngine = 'antigravity';
 
     // In-memory cache
     this._stateCache = null;
@@ -160,8 +167,9 @@ class ContextManager {
 
     this._stateCache = state;
     await this._saveState();
-    await this._saveHandoffFile(handoff);
+    const handoffPath = await this._saveHandoffFile(handoff);
     await this._saveConfidenceFile(state.metadata.delivery_confidence);
+    await this._saveSentinelState(handoff, handoffPath, options);
   }
 
   /**
@@ -323,15 +331,24 @@ class ContextManager {
       version: '1.0.0',
       workflow_id: this.workflowId,
       generated_at: completedAt,
+      from_agent: normalizeAgent(output.agent),
+      to_agent: normalizeAgent(handoffTarget.agent),
+      last_command: normalizeCommand(output.command || output.action),
+      next_agent: normalizeAgent(handoffTarget.agent),
+      next_command: normalizeCommand(handoffTarget.command || handoffTarget.action),
+      consumed: false,
       from: {
         phase: phaseNum,
         agent: output.agent || null,
         action: output.action || null,
+        command: normalizeCommand(output.command || output.action),
         task: output.task || null,
       },
       to: {
         phase: handoffTarget.phase || null,
         agent: handoffTarget.agent || null,
+        action: handoffTarget.action || null,
+        command: normalizeCommand(handoffTarget.command || handoffTarget.action),
       },
       context_snapshot: {
         workflow_status: state.status,
@@ -353,6 +370,32 @@ class ContextManager {
     const filePath = path.join(this.handoffDir, `${this.workflowId}-phase-${phase}.handoff.json`);
     await fs.ensureDir(this.handoffDir);
     await fs.writeJson(filePath, handoff, { spaces: 2 });
+    return filePath;
+  }
+
+  /**
+   * Persist current Sentinel workflow contract for AntiGravity hooks.
+   * @private
+   */
+  async _saveSentinelState(handoff, handoffPath, options = {}) {
+    if (options.sentinel === false) {
+      return null;
+    }
+
+    const state = buildSentinelState({
+      activeEngine: options.activeEngine || this.sentinelActiveEngine,
+      workflowId: this.workflowId,
+      phase: handoff?.to?.phase || handoff?.from?.phase || null,
+      currentAgent: handoff?.to?.agent || handoff?.from?.agent || null,
+      currentCommand: handoff?.to?.command || handoff?.from?.command || null,
+      expectedAgent: handoff?.to?.agent || null,
+      expectedCommand: handoff?.to?.command || null,
+      handoffPath,
+      handoff,
+      generatedAt: handoff?.generated_at,
+    });
+
+    return writeSentinelState(this.projectRoot, state);
   }
 
   /**

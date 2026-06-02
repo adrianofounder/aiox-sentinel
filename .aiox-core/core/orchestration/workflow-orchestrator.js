@@ -51,13 +51,16 @@ class WorkflowOrchestrator {
       projectRoot: options.projectRoot || process.cwd(),
       confidenceThreshold: this._resolveConfidenceThreshold(options.confidenceThreshold),
       enableConfidenceGate: options.enableConfidenceGate !== false,
+      enableSentinel: options.enableSentinel || process.env.AIOX_SENTINEL_MODE === 'true',
     };
 
     this.workflow = null;
     this.promptBuilder = new SubagentPromptBuilder(this.options.projectRoot);
     this.contextManager = null;
     this.parallelExecutor = new ParallelExecutor();
-    this.checklistRunner = new ChecklistRunner(this.options.projectRoot);
+    this.checklistRunner = new ChecklistRunner(this.options.projectRoot, {
+      sentinelMode: this.options.enableSentinel,
+    });
 
     // V3.1: Pre-flight detection and skill dispatch components
     this.techStackDetector = new TechStackDetector(this.options.projectRoot);
@@ -268,6 +271,7 @@ class WorkflowOrchestrator {
         const checklistResult = await this.checklistRunner.run(
           this._currentChecklist,
           phase.creates,
+          { sentinelMode: this.options.enableSentinel },
         );
         validation.checks.push({
           type: 'checklist',
@@ -311,7 +315,11 @@ class WorkflowOrchestrator {
       }
 
       case 'run_checklist': {
-        const result = await this.checklistRunner.run(action.checklist, action.targetPath);
+        const result = await this.checklistRunner.run(
+          action.checklist,
+          action.targetPath,
+          { sentinelMode: this.options.enableSentinel },
+        );
         return { success: result.passed, items: result.items };
       }
 
@@ -611,6 +619,7 @@ class WorkflowOrchestrator {
       await this.contextManager.savePhaseOutput(phaseNum, {
         agent: phase.agent,
         action: phase.action,
+        command: this._formatPhaseCommand(phase),
         task: phase.task,
         result,
         validation,
@@ -665,10 +674,29 @@ class WorkflowOrchestrator {
       return {
         phase: next.phase,
         agent: next.agent || null,
+        action: next.action || null,
+        command: this._formatPhaseCommand(next),
       };
     }
 
-    return { phase: null, agent: null };
+    return { phase: null, agent: null, action: null, command: null };
+  }
+
+  /**
+   * Build a command-like value from a workflow phase.
+   * @private
+   */
+  _formatPhaseCommand(phase) {
+    if (!phase) {
+      return null;
+    }
+    if (phase.command) {
+      return String(phase.command).startsWith('*') ? phase.command : `*${phase.command}`;
+    }
+    if (phase.action) {
+      return String(phase.action).startsWith('*') ? phase.action : `*${phase.action}`;
+    }
+    return null;
   }
 
   /**

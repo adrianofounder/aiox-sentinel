@@ -808,9 +808,18 @@ describe('ContextManager', () => {
         phase: 1,
         agent: 'dev',
         action: 'implement',
+        command: '*implement',
         task: 'develop-story',
       });
-      expect(handoff.to).toEqual({ phase: 2, agent: 'qa' });
+      expect(handoff.to).toEqual({
+        phase: 2,
+        agent: 'qa',
+        action: null,
+        command: null,
+      });
+      expect(handoff.from_agent).toBe('@dev');
+      expect(handoff.to_agent).toBe('@qa');
+      expect(handoff.last_command).toBe('*implement');
     });
 
     test('usa null para from.agent/action/task quando não fornecidos', () => {
@@ -820,6 +829,7 @@ describe('ContextManager', () => {
 
       expect(handoff.from.agent).toBeNull();
       expect(handoff.from.action).toBeNull();
+      expect(handoff.from.command).toBeNull();
       expect(handoff.from.task).toBeNull();
     });
 
@@ -830,6 +840,7 @@ describe('ContextManager', () => {
 
       expect(handoff.to.phase).toBeNull();
       expect(handoff.to.agent).toBeNull();
+      expect(handoff.to.command).toBeNull();
     });
 
     test('inclui context_snapshot com status e metadata', () => {

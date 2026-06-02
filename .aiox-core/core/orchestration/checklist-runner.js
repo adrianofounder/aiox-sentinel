@@ -24,9 +24,10 @@ class ChecklistRunner {
   /**
    * @param {string} projectRoot - Project root directory
    */
-  constructor(projectRoot) {
+  constructor(projectRoot, options = {}) {
     this.projectRoot = projectRoot;
     this.checklistsPath = path.join(projectRoot, '.aiox-core', 'product', 'checklists');
+    this.sentinelMode = options.sentinelMode || process.env.AIOX_SENTINEL_CHECKLIST_MODE === 'true';
   }
 
   /**
@@ -35,10 +36,12 @@ class ChecklistRunner {
    * @param {string|string[]} targetPaths - Path(s) to validate
    * @returns {Promise<Object>} Validation result
    */
-  async run(checklistName, targetPaths) {
+  async run(checklistName, targetPaths, options = {}) {
+    const sentinelMode = options.sentinelMode ?? this.sentinelMode;
     const result = {
       checklist: checklistName,
       passed: true,
+      sentinelMode,
       items: [],
       errors: [],
       timestamp: new Date().toISOString(),
@@ -57,11 +60,11 @@ class ChecklistRunner {
 
     // Evaluate each item
     for (const item of items) {
-      const itemResult = await this.evaluateItem(item, targetPaths);
+      const itemResult = await this.evaluateItem(item, targetPaths, { sentinelMode });
       result.items.push(itemResult);
 
       if (!itemResult.passed) {
-        if (item.blocker) {
+        if (item.blocker || sentinelMode) {
           result.passed = false;
           result.errors.push(`Blocker failed: ${item.description}`);
         }
@@ -117,10 +120,10 @@ class ChecklistRunner {
     }
 
     // Pattern 2: Markdown checkboxes with descriptions
-    const checkboxPattern = /^[-*]\s*\[[ x]\]\s*(.+)$/gm;
+    const checkboxPattern = /^[-*]\s*\[(?<status>x|X| |N\/A|n\/a|na|NA)\]\s*(?<description>.+)$/gm;
     let checkboxMatch;
     while ((checkboxMatch = checkboxPattern.exec(content)) !== null) {
-      const description = checkboxMatch[1].trim();
+      const description = checkboxMatch.groups.description.trim();
       // Skip if already parsed from YAML
       if (!items.some(i => i.description.includes(description.substring(0, 30)))) {
         items.push({
@@ -128,6 +131,7 @@ class ChecklistRunner {
           tipo: 'manual',
           blocker: false,
           validation: null,
+          status: checkboxMatch.groups.status.toUpperCase(),
         });
       }
     }
@@ -154,13 +158,17 @@ class ChecklistRunner {
     // Item is an object with YAML structure
     const firstKey = Object.keys(item)[0];
     const description = firstKey.replace(/^\[[ x]\]\s*/, '').trim();
+    const nested = item[firstKey];
+    const metadata = nested && typeof nested === 'object' && !Array.isArray(nested)
+      ? nested
+      : item;
 
     return {
       description,
-      tipo: item.tipo || category,
-      blocker: item.blocker !== false && category !== 'manual',
-      validation: item.validação || item.validation || null,
-      errorMessage: item.error_message || null,
+      tipo: metadata.tipo || category,
+      blocker: metadata.blocker !== false && category !== 'manual',
+      validation: metadata.validação || metadata.validation || null,
+      errorMessage: metadata.error_message || null,
     };
   }
 
@@ -170,7 +178,8 @@ class ChecklistRunner {
    * @param {string|string[]} targetPaths - Target path(s) to validate
    * @returns {Promise<Object>} Evaluation result
    */
-  async evaluateItem(item, targetPaths) {
+  async evaluateItem(item, targetPaths, options = {}) {
+    const { sentinelMode = false } = options;
     const result = {
       description: item.description,
       tipo: item.tipo,
@@ -178,6 +187,12 @@ class ChecklistRunner {
       passed: true,
       message: null,
     };
+
+    if (sentinelMode && !item.validation) {
+      result.passed = false;
+      result.message = 'Sentinel mode requires deterministic validation evidence';
+      return result;
+    }
 
     // If item has code-based validation, execute it
     if (item.validation) {

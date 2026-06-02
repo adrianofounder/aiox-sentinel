@@ -6,5 +6,6 @@ module.exports = {
   ...require('./engine-isolation-guard'),
   ...require('./handoff-gate'),
   ...require('./hud'),
+  ...require('./state-writer'),
   ...require('./workflow-contract'),
 };
