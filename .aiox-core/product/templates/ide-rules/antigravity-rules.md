@@ -1,129 +1,59 @@
-# Synkra AIOX Development Rules for AntiGravity
+# Regras Synkra AIOX Para AntiGravity
 
-You are working with Synkra AIOX, an AI-Orchestrated System for Full Stack Development.
+## 1. Idioma E Formato
 
-## Core Development Rules
+1. Responda sempre em portugues do Brasil, salvo pedido explicito do usuario em outro idioma.
+2. Numere todas as interacoes, sugestoes, opcoes, decisoes e proximos passos com `1.`, `2.`, `3.`.
+3. Nao use alternativas em letras como `A/B/C`.
+4. Separe fatos como `verificado`, `inferido` e `pendente` quando a diferenca importar.
 
-### Agent Integration
-- Recognize AIOX agent activations: @dev, @qa, @architect, @pm, @po, @sm, @analyst
-- Agent commands use * prefix: *help, *create-story, *task, *exit
-- Follow agent-specific workflows and patterns
+## 2. Ativacao De Agentes
 
-### AIOX Sentinel Guardrails
-- On every agent activation, confirm the active AIOX identity before doing task work
-- Read `.aiox/config.yaml` when present and respect `workflow_state.current_agent`
-- If the active workflow state points to a different agent, HALT and ask the user to activate that agent
-- Do not execute another persona's responsibilities, commands, approvals, or handoff decisions
-- Do not hand off automatically; write the handoff summary and HALT for explicit user activation
-- If the agent file or workflow state cannot be read, state that AntiGravity is running as base AntiGravity and HALT
+1. Reconheca ativacoes AIOX como `@dev`, `@qa`, `@architect`, `@pm`, `@po`, `@sm`, `@analyst` e `@aiox-master`.
+2. Comandos de agente usam prefixo `*`, por exemplo `*help`, `*create-story`, `*task` e `*exit`.
+3. Antes de executar trabalho, confirme a identidade AIOX ativa.
+4. Leia `.aiox/config.yaml` quando existir e respeite `workflow_state.current_agent`.
+5. Se o estado esperado apontar para outro agente, pare e peca ao usuario para ativar o agente correto.
 
-### Story-Driven Development
-1. **Always work from a story file** in docs/stories/
-2. **Update story checkboxes** as you complete tasks: [ ] → [x]
-3. **Maintain the File List** section with all created/modified files
-4. **Follow acceptance criteria** exactly as written
+## 3. Guardrails Sentinel
 
-### Code Quality Standards
-- Write clean, maintainable code following project conventions
-- Include comprehensive error handling
-- Add unit tests for all new functionality
-- Follow existing patterns in the codebase
+1. Nao execute responsabilidades, comandos, aprovacoes ou handoffs de outra persona.
+2. Nao faca handoff automatico.
+3. Ao concluir uma etapa, escreva o resumo de handoff e pare para ativacao explicita do usuario.
+4. Se nao conseguir ler o estado, o arquivo do agente ou o contrato Sentinel, declare o bloqueio e pare.
+5. O modo Sentinel e bloqueante: ausencia de contrato, handoff ou checklist deve impedir continuidade.
 
-### Testing Protocol
-- Run all tests before marking tasks complete
-- Ensure linting passes: `npm run lint`
-- Verify type checking: `npm run typecheck`
-- Add tests for new features
+## 4. Desenvolvimento Por Story
 
-## AIOX Framework Structure
+1. Trabalhe sempre a partir de uma story em `docs/stories/` quando a tarefa envolver entrega de produto.
+2. Atualize checkboxes da story conforme concluir tarefas: `[ ]` para `[x]`.
+3. Mantenha a secao `File List` com todos os arquivos criados ou alterados.
+4. Siga criterios de aceite exatamente como escritos.
 
-Canonical v4/v5 source paths:
-- Agents: `.aiox-core/development/agents`
-- Tasks: `.aiox-core/development/tasks`
-- Workflows: `.aiox-core/development/workflows`
-- Templates: `.aiox-core/product/templates`
+## 5. Qualidade
 
-```
-aiox-core/
-├── agents/       # Agent persona definitions
-├── tasks/        # Executable task workflows
-├── workflows/    # Multi-step workflows
-├── templates/    # Document templates
-└── checklists/   # Validation checklists
+1. Siga padroes existentes do projeto antes de criar novas abstracoes.
+2. Inclua tratamento de erro quando o fluxo puder falhar.
+3. Adicione ou atualize testes para comportamento novo.
+4. Rode validacoes relevantes antes de marcar a tarefa como concluida.
 
-docs/
-├── stories/      # Development stories
-├── prd/          # Sharded PRD sections
-└── architecture/ # Sharded architecture
-```
+## 6. Estrutura Canonica
 
-## Development Workflow
+1. Agentes: `.aiox-core/development/agents`
+2. Tarefas: `.aiox-core/development/tasks`
+3. Workflows: `.aiox-core/development/workflows`
+4. Templates: `.aiox-core/product/templates`
+5. Stories: `docs/stories`
+6. PRD: `docs/prd`
+7. Arquitetura: `docs/architecture`
 
-1. **Read the story** - Understand requirements fully
-2. **Implement sequentially** - Follow task order
-3. **Test thoroughly** - Validate each step
-4. **Update story** - Mark completed items
-5. **Document changes** - Update File List
+## 7. Git E GitHub
 
-## Best Practices
-
-### When implementing:
-- Check existing patterns first
-- Reuse components and utilities
-- Follow naming conventions
-- Keep functions focused and small
-
-### When testing:
-- Write tests alongside implementation
-- Test edge cases
-- Verify error handling
-- Run full test suite
-
-### When documenting:
-- Update README for new features
-- Document API changes
-- Add inline comments for complex logic
-- Keep story File List current
-
-## Git & GitHub
-
-- Use conventional commits: `feat:`, `fix:`, `docs:`, etc.
-- Reference story ID in commits: `feat: implement IDE detection [Story 2.1]`
-- Ensure GitHub CLI is configured: `gh auth status`
-- Push regularly to avoid conflicts
-
-## Common Patterns
-
-### Error Handling
-```javascript
-try {
-  // Operation
-} catch (error) {
-  console.error(`Error in ${operation}:`, error);
-  throw new Error(`Failed to ${operation}: ${error.message}`);
-}
-```
-
-### File Operations
-```javascript
-const fs = require('fs-extra');
-const path = require('path');
-
-// Always use absolute paths
-const filePath = path.join(__dirname, 'relative/path');
-```
-
-### Async/Await
-```javascript
-async function operation() {
-  try {
-    const result = await asyncOperation();
-    return result;
-  } catch (error) {
-    // Handle error appropriately
-  }
-}
-```
+1. Use commits pequenos e descritivos.
+2. Nao faca comandos destrutivos sem pedido explicito e alvo concreto do usuario.
+3. Nao altere `origin` upstream sem pedido explicito.
+4. Publique no remote correto do projeto quando autorizado.
 
 ---
-*Synkra AIOX AntiGravity Configuration v1.0*
+
+1. Configuracao AntiGravity Synkra AIOX v1.0.

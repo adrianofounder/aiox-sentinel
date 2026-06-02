@@ -36,33 +36,34 @@ function parseArgs(argv = process.argv.slice(2)) {
 
 function formatText(result) {
   const lines = [
-    `Mode: ${result.dry_run ? 'dry-run' : 'apply'}`,
-    `Project: ${result.manifest.project_name}`,
-    `Project ID: ${result.manifest.project_id}`,
-    `Active engine: ${result.manifest.active_engine}`,
-    `Backup root: ${result.manifest.backup_root}`,
-    `Engines to move: ${result.summary.engines_to_move.join(', ') || 'none'}`,
+    `1. Modo: ${result.dry_run ? 'dry-run' : 'aplicar'}`,
+    `2. Projeto: ${result.manifest.project_name}`,
+    `3. Project ID: ${result.manifest.project_id}`,
+    `4. Motor ativo: ${result.manifest.active_engine}`,
+    `5. Raiz do backup: ${result.manifest.backup_root}`,
+    `6. Motores a mover: ${result.summary.engines_to_move.join(', ') || 'nenhum'}`,
     '',
-    'Actions:',
+    '7. Acoes:',
   ];
 
-  for (const action of result.actions) {
+  for (let index = 0; index < result.actions.length; index += 1) {
+    const action = result.actions[index];
     if (action.type === 'move_engine') {
-      lines.push(`1. move ${action.engine}: ${action.from} -> ${action.to}`);
+      lines.push(`${index + 1}. mover ${action.engine}: ${action.from} -> ${action.to}`);
     } else if (action.type === 'write_marker') {
-      lines.push(`2. marker ${action.engine}: ${action.path}`);
+      lines.push(`${index + 1}. marcador ${action.engine}: ${action.path}`);
     } else {
-      lines.push(`3. ${action.type}: ${action.path}`);
+      lines.push(`${index + 1}. ${action.type}: ${action.path}`);
     }
   }
 
   if (result.dry_run) {
     lines.push('');
-    lines.push('No files were changed.');
-    lines.push(`To apply, rerun with: --apply --confirm ${result.manifest.project_id}`);
+    lines.push('1. Nenhum arquivo foi alterado.');
+    lines.push(`2. Para aplicar, execute novamente com: --apply --confirm ${result.manifest.project_id}`);
   } else {
     lines.push('');
-    lines.push(`Manifest written: ${result.manifest_path}`);
+    lines.push(`1. Manifesto gravado: ${result.manifest_path}`);
   }
 
   return lines.join('\n');
@@ -70,22 +71,22 @@ function formatText(result) {
 
 function printHelp() {
   console.log([
-    'AIOX Sentinel engine isolation',
+    'AIOX Sentinel isolamento de motores',
     '',
-    'Dry-run:',
+    '1. Dry-run:',
     '  node .aiox-core/infrastructure/scripts/antigravity-sentinel-isolate.js --project-root D:\\project',
     '',
-    'Apply requires explicit project id confirmation:',
+    '2. Aplicar exige confirmacao explicita do project id:',
     '  node .aiox-core/infrastructure/scripts/antigravity-sentinel-isolate.js --project-root D:\\project --apply --confirm <project-id>',
     '',
-    'Options:',
-    '  --project-root <path>      Project root. Defaults to cwd.',
-    '  --active-engine <engine>   Active engine. Defaults to antigravity.',
-    '  --backup-root <path>       Backup root. Defaults to D:\\.aiox-sentinel-backups.',
-    '  --remote <url>             Remote URL used in project id.',
-    '  --apply                    Execute backup and move. Omit for dry-run.',
-    '  --confirm <project-id>     Required with --apply.',
-    '  --json                     Print JSON.',
+    '3. Opcoes:',
+    '  --project-root <path>      Raiz do projeto. Padrao: cwd.',
+    '  --active-engine <engine>   Motor ativo. Padrao: antigravity.',
+    '  --backup-root <path>       Raiz do backup. Padrao: D:\\.aiox-sentinel-backups.',
+    '  --remote <url>             URL remota usada no project id.',
+    '  --apply                    Executa backup e movimento. Omitir para dry-run.',
+    '  --confirm <project-id>     Obrigatorio com --apply.',
+    '  --json                     Imprime JSON.',
   ].join('\n'));
 }
 
@@ -111,7 +112,7 @@ if (require.main === module) {
   try {
     main();
   } catch (error) {
-    console.error(`AIOX Sentinel isolation failed: ${error.message}`);
+    console.error(`1. Isolamento AIOX Sentinel falhou: ${error.message}`);
     process.exitCode = 1;
   }
 }

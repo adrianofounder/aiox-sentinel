@@ -41,7 +41,7 @@ describe('AIOX Sentinel', () => {
       const result = validateEngineIsolation({ projectRoot, activeEngine: 'antigravity' });
 
       expect(result.decision).toBe('deny');
-      expect(result.reason).toContain('Multiple active engine directories');
+      expect(result.reason).toContain('Multiplos diretorios de motor ativos');
       expect(result.inactiveActiveEngines).toEqual(['codex']);
     });
 
@@ -82,7 +82,7 @@ describe('AIOX Sentinel', () => {
       const content = getDisabledMarkerContent('antigravity');
 
       expect(content).not.toContain('AIOX');
-      expect(content).toContain('Active engine: antigravity');
+      expect(content).toContain('Motor ativo: antigravity');
     });
 
     test('dry-run plan does not move inactive engine directories', () => {
@@ -113,7 +113,7 @@ describe('AIOX Sentinel', () => {
         projectRoot,
         activeEngine: 'antigravity',
         confirmProjectId: 'wrong-project',
-      })).toThrow('requires explicit confirmation');
+      })).toThrow('confirmacao explicita');
     });
 
     test('apply moves inactive engine to backup and leaves marker only', () => {
@@ -151,7 +151,7 @@ describe('AIOX Sentinel', () => {
       const result = validateChecklistEvidence();
 
       expect(result.decision).toBe('deny');
-      expect(result.reason).toContain('missing');
+      expect(result.reason).toContain('ausente');
     });
 
     test('blocks unchecked checklist item', () => {
@@ -160,7 +160,7 @@ describe('AIOX Sentinel', () => {
       });
 
       expect(result.decision).toBe('deny');
-      expect(result.reason).toContain('unchecked');
+      expect(result.reason).toContain('nao marcados');
     });
 
     test('blocks N/A without justification', () => {
@@ -169,7 +169,7 @@ describe('AIOX Sentinel', () => {
       });
 
       expect(result.decision).toBe('deny');
-      expect(result.reason).toContain('without justification');
+      expect(result.reason).toContain('sem justificativa');
     });
 
     test('allows complete checklist with justified N/A', () => {
@@ -254,7 +254,7 @@ describe('AIOX Sentinel', () => {
       });
 
       expect(result.decision).toBe('deny');
-      expect(result.reason).toContain('agent mismatch');
+      expect(result.reason).toContain('agente incorreto');
     });
 
     test('blocks wrong command', () => {
@@ -266,7 +266,7 @@ describe('AIOX Sentinel', () => {
       });
 
       expect(result.decision).toBe('deny');
-      expect(result.reason).toContain('command mismatch');
+      expect(result.reason).toContain('comando incorreto');
     });
 
     test('builds expected contract from complete handoff', () => {
@@ -301,13 +301,13 @@ describe('AIOX Sentinel', () => {
         nextCommand: '*develop story-1',
         checklistStatus: 'allow',
         handoffStatus: 'allow',
-        blockers: ['none'],
+        blockers: ['nenhum'],
       });
 
       expect(hud).toContain('Story Development Cycle');
       expect(hud).toContain('@sm *draft');
       expect(hud).toContain('[>] 2. @po *validate-story-draft');
-      expect(hud).toContain('Next: @dev *develop story-1');
+      expect(hud).toContain('Proximo: @dev *develop story-1');
     });
   });
 
@@ -332,7 +332,7 @@ describe('AIOX Sentinel', () => {
       });
 
       expect(result.decision).toBe('deny');
-      expect(result.reason).toContain('missing workflow_contract');
+      expect(result.reason).toContain('sem workflow_contract');
     });
 
     test('allows non-command tool when engine isolation and workflow contract pass', () => {
@@ -387,7 +387,7 @@ describe('AIOX Sentinel', () => {
       });
 
       expect(result.decision).toBe('deny');
-      expect(result.reason).toContain('command mismatch');
+      expect(result.reason).toContain('comando incorreto');
     });
 
     test('allows pre-invocation when engine isolation and workflow contract pass', () => {
@@ -440,7 +440,7 @@ describe('AIOX Sentinel', () => {
       });
 
       expect(result.decision).toBe('deny');
-      expect(result.reason).toContain('Checklist evidence is missing');
+      expect(result.reason).toContain('Evidencia de checklist ausente');
     });
 
     test('allows stop when handoff and checklist evidence are complete', () => {

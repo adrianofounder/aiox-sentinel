@@ -13,7 +13,7 @@ function validateChecklistEvidence(options = {}) {
       : null;
 
   if (!source) {
-    return block('Checklist evidence is missing', []);
+    return block('1. Evidencia de checklist ausente', []);
   }
 
   const items = [];
@@ -31,24 +31,24 @@ function validateChecklistEvidence(options = {}) {
   }
 
   if (items.length === 0) {
-    return block('Checklist evidence has no well-formed checkbox items', items);
+    return block('1. Evidencia de checklist nao tem itens de checkbox bem formados', items);
   }
 
   const unchecked = items.filter((item) => item.status === ' ');
   if (unchecked.length > 0) {
-    return block(`Checklist has unchecked items: ${unchecked.length}`, items);
+    return block(`1. Checklist tem itens nao marcados: ${unchecked.length}`, items);
   }
 
   const unjustifiedNa = items.filter(
     (item) => (item.status === 'N/A' || item.status === 'NA') && !item.justification,
   );
   if (unjustifiedNa.length > 0) {
-    return block(`Checklist has N/A items without justification: ${unjustifiedNa.length}`, items);
+    return block(`1. Checklist tem itens N/A sem justificativa: ${unjustifiedNa.length}`, items);
   }
 
   return {
     decision: 'allow',
-    reason: 'Checklist evidence is complete',
+    reason: '1. Evidencia de checklist completa',
     items,
   };
 }

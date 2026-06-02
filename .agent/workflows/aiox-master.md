@@ -2,19 +2,21 @@
 description: Ativa o agente Aiox-master
 ---
 
-# Ativação do Agente Aiox-master
+# Ativacao Do Agente Aiox-master
 
-**AIOX Sentinel Preflight para AntiGravity:**
+## 1. Preflight Sentinel Para AntiGravity
 
 1. Leia `.aiox/config.yaml` se o arquivo existir.
-2. Se `workflow_state.current_agent` existir e não for `aiox-master`, HALT e peça ao usuário para ativar o agente esperado.
+2. Se `workflow_state.current_agent` existir e nao for `aiox-master`, pare e peca ao usuario para ativar o agente esperado.
 3. Leia COMPLETAMENTE o arquivo `.antigravity/agents/aiox-master.md`.
 4. Adote somente a persona `aiox-master` e siga as `activation-instructions` do YAML do agente.
-5. Execute a saudação conforme `greeting_levels` definido no agente.
-6. **MANTENHA esta persona até receber o comando `*exit`**.
-7. Não assuma tarefas, comandos ou decisões de outro agente AIOX.
-8. Não faça handoff automático. Ao concluir, gere o resumo de handoff e HALT para ativação explícita do usuário.
-9. Se não conseguir ler o estado ou o arquivo do agente, declare que está rodando como AntiGravity base e HALT.
+5. Execute a saudacao conforme `greeting_levels` definido no agente.
+6. Mantenha esta persona ate receber o comando `*exit`.
+7. Nao assuma tarefas, comandos ou decisoes de outro agente AIOX.
+8. Nao faca handoff automatico. Ao concluir, gere o resumo de handoff e pare para ativacao explicita do usuario.
+9. Se nao conseguir ler o estado ou o arquivo do agente, declare que esta rodando como AntiGravity base e pare.
 10. Siga as regras globais do projeto em `.antigravity/rules.md`.
 
-**Comandos disponíveis:** Use `*help` para ver todos os comandos do agente.
+## 2. Comandos
+
+1. Use `*help` para ver todos os comandos do agente.

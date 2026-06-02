@@ -313,7 +313,12 @@ async function copyAgentFiles(projectRoot, agentFolder, ideConfig = null) {
         const agentsDir = path.join(projectRoot, ideConfig.specialConfig.agentsFolder);
         await fs.ensureDir(agentsDir);
         const agentTargetPath = path.join(agentsDir, file);
-        await fs.copy(sourcePath, agentTargetPath);
+        const originalAgentContent = await fs.readFile(sourcePath, 'utf8');
+        await fs.writeFile(
+          agentTargetPath,
+          `${createAntiGravityAgentPreamble(agentName)}${originalAgentContent}`,
+          'utf8',
+        );
         copiedFiles.push(agentTargetPath);
       } else if (isCursor) {
         // Cursor: generate .mdc project rules with frontmatter instead of raw agent markdown.
@@ -456,6 +461,53 @@ description: Ativa o agente ${displayName}
 `;
 }
 
+function generateAntiGravityWorkflowPtBr(agentName) {
+  const displayName = agentName.charAt(0).toUpperCase() + agentName.slice(1);
+
+  return `---
+description: Ativa o agente ${displayName}
+---
+
+# Ativacao Do Agente ${displayName}
+
+## 1. Preflight Sentinel Para AntiGravity
+
+1. Leia \`.aiox/config.yaml\` se o arquivo existir.
+2. Se \`workflow_state.current_agent\` existir e nao for \`${agentName}\`, pare e peca ao usuario para ativar o agente esperado.
+3. Leia COMPLETAMENTE o arquivo \`.antigravity/agents/${agentName}.md\`.
+4. Adote somente a persona \`${agentName}\` e siga as \`activation-instructions\` do YAML do agente.
+5. Execute a saudacao conforme \`greeting_levels\` definido no agente.
+6. Mantenha esta persona ate receber o comando \`*exit\`.
+7. Nao assuma tarefas, comandos ou decisoes de outro agente AIOX.
+8. Nao faca handoff automatico. Ao concluir, gere o resumo de handoff e pare para ativacao explicita do usuario.
+9. Se nao conseguir ler o estado ou o arquivo do agente, declare que esta rodando como AntiGravity base e pare.
+10. Siga as regras globais do projeto em \`.antigravity/rules.md\`.
+
+## 2. Comandos
+
+1. Use \`*help\` para ver todos os comandos do agente.
+`;
+}
+
+generateAntiGravityWorkflow = generateAntiGravityWorkflowPtBr;
+
+function createAntiGravityAgentPreamble(agentName) {
+  return [
+    `# Regras Sentinel PT-BR Para @${agentName}`,
+    '',
+    '1. Responda sempre em portugues do Brasil, salvo pedido explicito do usuario em outro idioma.',
+    '2. Numere todas as interacoes, sugestoes, opcoes, decisoes e proximos passos com `1.`, `2.`, `3.`.',
+    '3. Antes de executar trabalho, confirme que a persona ativa corresponde a este arquivo.',
+    '4. Se o contrato Sentinel indicar outro agente ou outro comando, declare o bloqueio e pare.',
+    '5. Nao execute responsabilidades, comandos, aprovacoes ou handoffs de outra persona.',
+    '6. Ao concluir, gere handoff fisico com proximo agente e proximo comando.',
+    '7. O conteudo original do agente abaixo pode conter termos tecnicos em ingles; a interacao com o usuario deve continuar em PT-BR e numerada.',
+    '',
+    '---',
+    '',
+  ].join('\n');
+}
+
 /**
  * Create AntiGravity configuration JSON file
  * @param {string} projectRoot - Project root directory
@@ -472,12 +524,12 @@ async function createAntiGravityConfigJson(projectRoot, ideConfig) {
     workspace: projectRoot.replace(/\\/g, '/'),
     agents: {
       enabled: true,
-      directory: ideConfig.specialConfig.agentsFolder,
+      directory: ideConfig.specialConfig.agentsFolder.replace(/\\/g, '/'),
       default: 'aiox-master',
     },
     rules: {
       enabled: true,
-      file: ideConfig.configFile,
+      file: ideConfig.configFile.replace(/\\/g, '/'),
     },
     features: {
       storyDrivenDevelopment: true,

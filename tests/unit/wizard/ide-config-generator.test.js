@@ -271,11 +271,12 @@ describe('IDE Config Generator', () => {
       const workflowPath = path.join(testDir, '.agent', 'workflows', 'dev.md');
       const content = await fs.readFile(workflowPath, 'utf8');
 
-      expect(content).toContain('AIOX Sentinel Preflight');
+      expect(content).toContain('Preflight Sentinel Para AntiGravity');
       expect(content).toContain('.aiox/config.yaml');
       expect(content).toContain('workflow_state.current_agent');
       expect(content).toContain('.antigravity/agents/dev.md');
-      expect(content).toContain('HALT');
+      expect(content).toContain('1. Leia');
+      expect(content).toContain('2. Se');
     });
 
     it('should create AntiGravity config with v4/v5 development paths', async () => {
@@ -325,10 +326,11 @@ describe('IDE Config Generator', () => {
     it('should expose AntiGravity helpers for focused unit coverage', () => {
       const workflow = _testing.generateAntiGravityWorkflow('qa');
 
-      expect(workflow).toContain('AIOX Sentinel Preflight');
+      expect(workflow).toContain('Preflight Sentinel Para AntiGravity');
       expect(workflow).toContain('workflow_state.current_agent');
       expect(workflow).toContain('.antigravity/agents/qa.md');
-      expect(workflow).toContain('HALT');
+      expect(workflow).toContain('1. Leia');
+      expect(workflow).toContain('2. Se');
       expect(_testing.createAntiGravityConfigJson).toBeDefined();
       expect(_testing.createAntiGravityHooksJson).toBeDefined();
     });

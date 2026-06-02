@@ -44,30 +44,30 @@ function validateExpectedInvocation(options = {}) {
   } = options;
   const errors = [];
 
-  if (!expectedAgent) errors.push('expected_agent is missing');
-  if (!expectedCommand) errors.push('expected_command is missing');
-  if (!actualAgent) errors.push('actual_agent is missing');
-  if (!actualCommand) errors.push('actual_command is missing');
+  if (!expectedAgent) errors.push('expected_agent ausente');
+  if (!expectedCommand) errors.push('expected_command ausente');
+  if (!actualAgent) errors.push('actual_agent ausente');
+  if (!actualCommand) errors.push('actual_command ausente');
 
   if (expectedAgent && actualAgent && expectedAgent !== actualAgent) {
-    errors.push(`agent mismatch: expected ${expectedAgent}, got ${actualAgent}`);
+    errors.push(`agente incorreto: esperado ${expectedAgent}, recebido ${actualAgent}`);
   }
 
   if (expectedCommand && actualCommand && commandBase(expectedCommand) !== commandBase(actualCommand)) {
-    errors.push(`command mismatch: expected ${commandBase(expectedCommand)}, got ${commandBase(actualCommand)}`);
+    errors.push(`comando incorreto: esperado ${commandBase(expectedCommand)}, recebido ${commandBase(actualCommand)}`);
   }
 
   if (errors.length > 0) {
     return {
       decision: 'deny',
-      reason: errors.join('; '),
+      reason: `1. ${errors.join('; ')}`,
       errors,
     };
   }
 
   return {
     decision: 'allow',
-    reason: 'Workflow invocation matches expected agent and command',
+    reason: '1. Invocacao do workflow corresponde ao agente e comando esperados',
     errors: [],
   };
 }

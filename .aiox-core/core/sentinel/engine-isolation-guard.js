@@ -36,9 +36,9 @@ function createProjectId(projectRoot, remote = '') {
 
 function getDisabledMarkerContent(activeEngine) {
   return [
-    'Inactive engine files were moved outside this workspace.',
-    `Active engine: ${activeEngine}`,
-    'See the project backup manifest for restore details.',
+    '1. Arquivos do motor inativo foram movidos para fora deste workspace.',
+    `2. Motor ativo: ${activeEngine}`,
+    '3. Consulte o manifesto de backup do projeto para restauracao.',
     '',
   ].join('\n');
 }
@@ -85,7 +85,7 @@ function validateEngineIsolation(options = {}) {
   if (!activeEngines.includes(activeEngine)) {
     return {
       decision: 'deny',
-      reason: `Active engine directory is missing: ${activeEngine}`,
+      reason: `1. Diretorio do motor ativo ausente: ${activeEngine}`,
       activeEngine,
       activeEngines,
       engines,
@@ -95,7 +95,7 @@ function validateEngineIsolation(options = {}) {
   if (inactiveActiveEngines.length > 0) {
     return {
       decision: 'deny',
-      reason: `Multiple active engine directories detected: ${activeEngines.join(', ')}`,
+      reason: `1. Multiplos diretorios de motor ativos detectados: ${activeEngines.join(', ')}`,
       activeEngine,
       activeEngines,
       inactiveActiveEngines,
@@ -105,7 +105,7 @@ function validateEngineIsolation(options = {}) {
 
   return {
     decision: 'allow',
-    reason: `Only ${activeEngine} is active`,
+    reason: `1. Somente ${activeEngine} esta ativo`,
     activeEngine,
     activeEngines,
     engines,
@@ -188,16 +188,16 @@ function applyEngineIsolation(options = {}) {
 
   if (confirmProjectId !== manifest.project_id) {
     throw new Error(
-      `Engine isolation requires explicit confirmation for project_id: ${manifest.project_id}`,
+      `1. Isolamento de motores exige confirmacao explicita para project_id: ${manifest.project_id}`,
     );
   }
 
   for (const entry of manifest.moved_engines) {
     if (!fs.existsSync(entry.original_path)) {
-      throw new Error(`Engine path not found: ${entry.original_path}`);
+      throw new Error(`1. Caminho do motor nao encontrado: ${entry.original_path}`);
     }
     if (fs.existsSync(entry.backup_path)) {
-      throw new Error(`Backup path already exists: ${entry.backup_path}`);
+      throw new Error(`1. Caminho de backup ja existe: ${entry.backup_path}`);
     }
   }
 

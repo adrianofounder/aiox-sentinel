@@ -28,7 +28,7 @@ function evaluatePreToolUse(input = {}, options = {}) {
 
   return {
     decision: 'allow',
-    reason: 'AIOX Sentinel pre-tool gate passed',
+    reason: '1. Gate PreToolUse do AIOX Sentinel aprovado',
   };
 }
 
@@ -42,7 +42,7 @@ function evaluatePreInvocation(input = {}, options = {}) {
 
   return {
     decision: 'allow',
-    reason: 'AIOX Sentinel pre-invocation gate passed',
+    reason: '1. Gate PreInvocation do AIOX Sentinel aprovado',
   };
 }
 
@@ -72,17 +72,17 @@ function evaluateCompletionGate(input = {}, options = {}, label = 'completion') 
 
   const handoff = validateHandoffGate(resolveHandoffOptions(context));
   if (handoff.decision !== 'allow') {
-    return deny(`AIOX Sentinel ${label} gate blocked: ${handoff.reason}`);
+    return deny(`1. Gate ${label} do AIOX Sentinel bloqueado. ${handoff.reason}`);
   }
 
   const checklist = validateChecklistEvidence(resolveChecklistOptions(context));
   if (checklist.decision !== 'allow') {
-    return deny(`AIOX Sentinel ${label} gate blocked: ${checklist.reason}`);
+    return deny(`1. Gate ${label} do AIOX Sentinel bloqueado. ${checklist.reason}`);
   }
 
   return {
     decision: 'allow',
-    reason: `AIOX Sentinel ${label} gate passed`,
+    reason: `1. Gate ${label} do AIOX Sentinel aprovado`,
   };
 }
 
@@ -124,7 +124,7 @@ function evaluateIsolation(context) {
 function evaluateWorkflowContract(context, actualCommand) {
   const workflowContract = context.state?.workflow_contract;
   if (!workflowContract) {
-    return deny('AIOX Sentinel state is missing workflow_contract');
+    return deny('1. Estado do AIOX Sentinel sem workflow_contract');
   }
 
   const contract = validateExpectedInvocation({

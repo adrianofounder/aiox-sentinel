@@ -24,7 +24,7 @@ process.stdin.on('end', () => {
   } catch (error) {
     process.stdout.write(JSON.stringify({
       decision: 'deny',
-      reason: `AIOX Sentinel hook failed: ${error.message}`,
+      reason: `1. Hook do AIOX Sentinel falhou: ${error.message}`,
     }));
   }
 });

@@ -228,7 +228,7 @@ describe('IDE Transformers', () => {
 
       expect(result).toContain('## AIOX Sentinel Guardrails');
       expect(result).toContain('workflow_state.current_agent');
-      expect(result).toContain('HALT');
+      expect(result).toContain('pare e peca ao usuario');
       expect(result).toContain('@dev (Dex)');
     });
 

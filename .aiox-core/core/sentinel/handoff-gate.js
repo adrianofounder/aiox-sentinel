@@ -29,7 +29,7 @@ function validateHandoffGate(options = {}) {
   if (!handoff) {
     return {
       decision: 'deny',
-      reason: 'Handoff artifact is missing',
+      reason: '1. Artefato de handoff ausente',
       missing: REQUIRED_HANDOFF_FIELDS,
     };
   }
@@ -38,7 +38,7 @@ function validateHandoffGate(options = {}) {
   if (missing.length > 0) {
     return {
       decision: 'deny',
-      reason: `Handoff artifact is missing required fields: ${missing.join(', ')}`,
+      reason: `1. Artefato de handoff sem campos obrigatorios: ${missing.join(', ')}`,
       missing,
       handoff,
     };
@@ -47,7 +47,7 @@ function validateHandoffGate(options = {}) {
   if (handoff.consumed === true) {
     return {
       decision: 'deny',
-      reason: 'Handoff artifact was already consumed',
+      reason: '1. Artefato de handoff ja foi consumido',
       missing: [],
       handoff,
     };
@@ -55,7 +55,7 @@ function validateHandoffGate(options = {}) {
 
   return {
     decision: 'allow',
-    reason: 'Handoff artifact is complete',
+    reason: '1. Artefato de handoff completo',
     missing: [],
     handoff,
   };

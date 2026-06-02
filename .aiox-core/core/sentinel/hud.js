@@ -17,14 +17,14 @@ function generateWorkflowHud(options = {}) {
   const lines = [
     '# AIOX Sentinel HUD',
     '',
-    `Workflow: ${workflow?.name || workflow?.id || 'unknown'}`,
-    `Expected: ${expectedAgent || 'unknown'} ${expectedCommand || ''}`.trim(),
-    `Current: ${currentAgent || 'unknown'} ${currentCommand || ''}`.trim(),
-    `Next: ${nextAgent || 'unknown'} ${nextCommand || ''}`.trim(),
-    `Checklist: ${checklistStatus || 'unknown'}`,
-    `Handoff: ${handoffStatus || 'unknown'}`,
+    `1. Workflow: ${workflow?.name || workflow?.id || 'desconhecido'}`,
+    `2. Esperado: ${expectedAgent || 'desconhecido'} ${expectedCommand || ''}`.trim(),
+    `3. Atual: ${currentAgent || 'desconhecido'} ${currentCommand || ''}`.trim(),
+    `4. Proximo: ${nextAgent || 'desconhecido'} ${nextCommand || ''}`.trim(),
+    `5. Checklist: ${checklistStatus || 'desconhecido'}`,
+    `6. Handoff: ${handoffStatus || 'desconhecido'}`,
     '',
-    '## Steps',
+    '## Passos',
   ];
 
   for (const step of workflow?.chain || []) {
@@ -33,12 +33,12 @@ function generateWorkflowHud(options = {}) {
   }
 
   lines.push('');
-  lines.push('## Blockers');
+  lines.push('## Bloqueios');
   if (blockers.length === 0) {
-    lines.push('- none');
+    lines.push('1. Nenhum');
   } else {
-    for (const blocker of blockers) {
-      lines.push(`- ${blocker}`);
+    for (let index = 0; index < blockers.length; index += 1) {
+      lines.push(`${index + 1}. ${blockers[index]}`);
     }
   }
 
