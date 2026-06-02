@@ -72,6 +72,22 @@
 6. Engines that would be moved: `codex`, `claude`, `cursor`, `gemini`.
 7. Backup root: `D:\.aiox-sentinel-backups`.
 
+## Physical Isolation Applied
+
+1. Command executed: `node .aiox-core/infrastructure/scripts/antigravity-sentinel-isolate.js --project-root D:\aiox-sentinel --apply --confirm aiox-sentinel-227e927de7ad --json`
+2. Mode: apply.
+3. Active engine: `antigravity`.
+4. Engines moved out of workspace: `codex`, `claude`, `cursor`, `gemini`.
+5. Backup timestamp folder: `D:\.aiox-sentinel-backups\aiox-sentinel-227e927de7ad\2026-06-02T08-58-41-285Z`
+6. Manifest path: `D:\.aiox-sentinel-backups\aiox-sentinel-227e927de7ad\latest-manifest.json`
+7. Workspace marker files left in place:
+   - `.codex/ENGINE_DISABLED.md`
+   - `.claude/ENGINE_DISABLED.md`
+   - `.cursor/ENGINE_DISABLED.md`
+   - `.gemini/ENGINE_DISABLED.md`
+8. Validation after apply: `validateEngineIsolation()` returned `allow` with only `antigravity` active.
+9. Filesystem deletion commands executed: none. Isolation used the Sentinel move/marker workflow.
+
 ## Pending Work
 
 1. Execute real backup/move of inactive engines only after explicit user confirmation naming `.codex`, `.claude`, `.cursor` and `.gemini`.
