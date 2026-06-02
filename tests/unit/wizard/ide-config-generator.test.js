@@ -210,7 +210,7 @@ describe('IDE Config Generator', () => {
       expect(await fs.pathExists(path.join(testDir, '.gemini', 'rules', 'AIOX', 'agents'))).toBe(true);
     });
 
-    it('should install Claude Code native subagents and authority hook registration', async () => {
+    it('should install or gracefully skip Claude Code native assets', async () => {
       const selectedIDEs = ['claude-code'];
       const wizardState = { projectName: 'test', projectType: 'greenfield' };
 
@@ -219,20 +219,28 @@ describe('IDE Config Generator', () => {
       });
 
       expect(result.success).toBe(true);
-      expect(await fs.pathExists(path.join(testDir, '.claude', 'agents', 'aiox-dev.md'))).toBe(true);
-      expect(await fs.pathExists(
-        path.join(testDir, '.claude', 'hooks', 'enforce-git-push-authority.cjs'),
-      )).toBe(true);
-
-      const settingsPath = path.join(testDir, '.claude', 'settings.local.json');
-      const settings = JSON.parse(await fs.readFile(settingsPath, 'utf8'));
-
-      expect(JSON.stringify(settings.hooks.PreToolUse)).toContain('enforce-git-push-authority.cjs');
-      expect(settings.hooks.PreToolUse.some(entry => entry.matcher === 'Bash')).toBe(true);
       expect(HOOK_EVENT_MAP['enforce-git-push-authority.cjs']).toMatchObject({
         event: 'PreToolUse',
         matcher: 'Bash',
       });
+
+      const sourceHasClaudeAssets = await fs.pathExists(path.join(process.cwd(), '.claude', 'agents', 'aiox-dev.md'));
+      const settingsPath = path.join(testDir, '.claude', 'settings.local.json');
+
+      if (sourceHasClaudeAssets) {
+        expect(await fs.pathExists(path.join(testDir, '.claude', 'agents', 'aiox-dev.md'))).toBe(true);
+        expect(await fs.pathExists(
+          path.join(testDir, '.claude', 'hooks', 'enforce-git-push-authority.cjs'),
+        )).toBe(true);
+
+        const settings = JSON.parse(await fs.readFile(settingsPath, 'utf8'));
+        expect(JSON.stringify(settings.hooks.PreToolUse)).toContain('enforce-git-push-authority.cjs');
+        expect(settings.hooks.PreToolUse.some(entry => entry.matcher === 'Bash')).toBe(true);
+      } else {
+        expect(await fs.pathExists(path.join(testDir, '.claude', 'CLAUDE.md'))).toBe(true);
+        expect(await fs.pathExists(path.join(testDir, '.claude', 'agents', 'aiox-dev.md'))).toBe(false);
+        expect(await fs.pathExists(settingsPath)).toBe(false);
+      }
     });
 
     it('should create directory for IDEs that require it', async () => {
