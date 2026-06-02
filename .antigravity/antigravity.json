@@ -4,12 +4,12 @@
     "workspace": "D:/aiox-sentinel",
     "agents": {
         "enabled": true,
-        "directory": ".antigravity/rules/agents",
+        "directory": ".antigravity/agents",
         "default": "aiox-master"
     },
     "rules": {
         "enabled": true,
-        "file": ".antigravity/rules/antigravity-rules.md"
+        "file": ".antigravity/rules.md"
     },
     "features": {
         "storyDrivenDevelopment": true,
