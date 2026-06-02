@@ -312,11 +312,14 @@ describe('IDE Config Generator', () => {
       const sentinel = hooks['aiox-sentinel'];
 
       expect(sentinel.enabled).toBe(true);
+      expect(sentinel.PreInvocation[0].hooks[0].command).toContain('--event PreInvocation');
       expect(sentinel.PreToolUse[0].matcher).toContain('run_command');
       expect(sentinel.PreToolUse[0].matcher).toContain('write_to_file');
       expect(sentinel.PreToolUse[0].hooks[0].command).toBe(
-        'node ".aiox-core/infrastructure/scripts/antigravity-sentinel-hook.js"',
+        'node ".aiox-core/infrastructure/scripts/antigravity-sentinel-hook.js" --event PreToolUse',
       );
+      expect(sentinel.PostInvocation[0].hooks[0].command).toContain('--event PostInvocation');
+      expect(sentinel.Stop[0].hooks[0].command).toContain('--event Stop');
     });
 
     it('should expose AntiGravity helpers for focused unit coverage', () => {

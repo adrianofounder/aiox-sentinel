@@ -512,9 +512,21 @@ async function createAntiGravityConfigJson(projectRoot, ideConfig) {
 async function createAntiGravityHooksJson(projectRoot) {
   const hooksPath = path.join(projectRoot, '.antigravity', 'hooks.json');
   const hookCommand = 'node ".aiox-core/infrastructure/scripts/antigravity-sentinel-hook.js"';
+  const eventHook = (event) => [
+    {
+      type: 'command',
+      command: `${hookCommand} --event ${event}`,
+      timeout: 10,
+    },
+  ];
   const hooks = {
     'aiox-sentinel': {
       enabled: true,
+      PreInvocation: [
+        {
+          hooks: eventHook('PreInvocation'),
+        },
+      ],
       PreToolUse: [
         {
           matcher: [
@@ -531,13 +543,17 @@ async function createAntiGravityHooksJson(projectRoot) {
             'send_message',
             'manage_subagents',
           ].join('|'),
-          hooks: [
-            {
-              type: 'command',
-              command: hookCommand,
-              timeout: 10,
-            },
-          ],
+          hooks: eventHook('PreToolUse'),
+        },
+      ],
+      PostInvocation: [
+        {
+          hooks: eventHook('PostInvocation'),
+        },
+      ],
+      Stop: [
+        {
+          hooks: eventHook('Stop'),
         },
       ],
     },

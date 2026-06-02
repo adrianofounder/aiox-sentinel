@@ -40,7 +40,7 @@ The deterministic implementation lives in `.aiox-core/core/sentinel/`.
    Generates a physical workflow visibility HUD with all steps, responsible agents, current/expected command, next handoff and blockers.
 
 6. `antigravity-hook.js`
-   Evaluates AntiGravity `PreToolUse` payloads and returns `allow`, `ask` or `deny`.
+   Evaluates AntiGravity `PreInvocation`, `PreToolUse`, `PostInvocation` and `Stop` payloads and returns `allow` or `deny`.
 
 7. `.aiox-core/infrastructure/scripts/antigravity-sentinel-hook.js`
    CLI hook runner that reads AntiGravity hook JSON from stdin and writes the hook decision JSON to stdout.
@@ -62,20 +62,25 @@ The deterministic implementation lives in `.aiox-core/core/sentinel/`.
 
 ## Hook Contract
 
-AntiGravity `PreToolUse` should call:
+AntiGravity hooks should call:
 
 ```text
-node .aiox-core/infrastructure/scripts/antigravity-sentinel-hook.js
+node .aiox-core/infrastructure/scripts/antigravity-sentinel-hook.js --event PreInvocation
+node .aiox-core/infrastructure/scripts/antigravity-sentinel-hook.js --event PreToolUse
+node .aiox-core/infrastructure/scripts/antigravity-sentinel-hook.js --event PostInvocation
+node .aiox-core/infrastructure/scripts/antigravity-sentinel-hook.js --event Stop
 ```
 
-The hook blocks when:
+The hooks block when:
 
 1. More than one engine directory is active.
 2. The active engine directory is missing.
-3. Sentinel state is present and the current agent does not match the expected agent.
-4. Sentinel state is present and the current command does not match the expected command.
-
-When Sentinel state is missing, the hook returns `ask` instead of silently allowing execution.
+3. Sentinel state is missing.
+4. Sentinel state is missing `workflow_contract`.
+5. The current agent does not match the expected agent.
+6. The current command does not match the expected command.
+7. Completion hooks do not have complete handoff evidence.
+8. Completion hooks do not have complete checklist evidence.
 
 ## Sentinel State Contract
 
@@ -154,10 +159,13 @@ The apply path:
 5. Recreates inactive engine directories with only `ENGINE_DISABLED.md`.
 6. Writes the manifest to the backup folder.
 
-## Pending
+## Project Installation
 
-1. Execute real engine isolation only after explicit user confirmation naming concrete targets.
-2. Validate AntiGravity end-to-end in an isolated workspace after engine directories are moved.
+The concrete installation checklist lives in:
+
+```text
+docs/framework/antigravity-installation.md
+```
 
 ## Test Coverage
 

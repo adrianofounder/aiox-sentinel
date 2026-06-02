@@ -4,6 +4,8 @@ const fs = require('fs');
 const path = require('path');
 
 const { validateEngineIsolation } = require('./engine-isolation-guard');
+const { validateChecklistEvidence } = require('./checklist-evidence-gate');
+const { validateHandoffGate } = require('./handoff-gate');
 const { validateExpectedInvocation } = require('./workflow-contract');
 
 const STATE_FILE = path.join('.aiox', 'sentinel', 'state.json');
@@ -17,49 +19,70 @@ function loadSentinelState(projectRoot) {
 }
 
 function evaluatePreToolUse(input = {}, options = {}) {
-  const projectRoot = options.projectRoot
-    || input.workspacePaths?.[0]
-    || process.cwd();
-  const state = options.state || loadSentinelState(projectRoot);
-  const activeEngine = options.activeEngine || state?.active_engine || 'antigravity';
-  const isolation = validateEngineIsolation({ projectRoot, activeEngine });
+  const context = buildHookContext(input, options);
+  const isolation = evaluateIsolation(context);
+  if (isolation) return isolation;
 
-  if (isolation.decision !== 'allow') {
-    return {
-      decision: 'deny',
-      reason: isolation.reason,
-    };
-  }
-
-  if (!state?.workflow_contract) {
-    return {
-      decision: 'ask',
-      reason: 'AIOX Sentinel state is missing workflow_contract',
-    };
-  }
-
-  const toolName = input.toolCall?.name || '';
-  const commandLine = input.toolCall?.args?.CommandLine || input.toolCall?.args?.command || '';
-  const actualCommand = toolName === 'run_command'
-    ? extractAioxCommand(commandLine)
-    : state.workflow_contract.current_command || state.workflow_contract.expected_command;
-  const contract = validateExpectedInvocation({
-    expectedAgent: state.workflow_contract.expected_agent,
-    expectedCommand: state.workflow_contract.expected_command,
-    actualAgent: state.workflow_contract.current_agent,
-    actualCommand,
-  });
-
-  if (contract.decision !== 'allow') {
-    return {
-      decision: 'deny',
-      reason: contract.reason,
-    };
-  }
+  const contract = evaluateWorkflowContract(context, resolveActualCommandFromToolUse(input, context.state));
+  if (contract) return contract;
 
   return {
     decision: 'allow',
     reason: 'AIOX Sentinel pre-tool gate passed',
+  };
+}
+
+function evaluatePreInvocation(input = {}, options = {}) {
+  const context = buildHookContext(input, options);
+  const isolation = evaluateIsolation(context);
+  if (isolation) return isolation;
+
+  const contract = evaluateWorkflowContract(context, resolveActualCommandFromInvocation(input, context.state));
+  if (contract) return contract;
+
+  return {
+    decision: 'allow',
+    reason: 'AIOX Sentinel pre-invocation gate passed',
+  };
+}
+
+function evaluatePostInvocation(input = {}, options = {}) {
+  return evaluateCompletionGate(input, options, 'post-invocation');
+}
+
+function evaluateStop(input = {}, options = {}) {
+  return evaluateCompletionGate(input, options, 'stop');
+}
+
+function evaluateAntiGravityHook(input = {}, options = {}) {
+  const event = normalizeEvent(options.event || input.event || input.hook_event || input.hookEvent);
+  if (event === 'PreInvocation') return evaluatePreInvocation(input, options);
+  if (event === 'PostInvocation') return evaluatePostInvocation(input, options);
+  if (event === 'Stop') return evaluateStop(input, options);
+  return evaluatePreToolUse(input, options);
+}
+
+function evaluateCompletionGate(input = {}, options = {}, label = 'completion') {
+  const context = buildHookContext(input, options);
+  const isolation = evaluateIsolation(context);
+  if (isolation) return isolation;
+
+  const contract = evaluateWorkflowContract(context, resolveActualCommandFromInvocation(input, context.state));
+  if (contract) return contract;
+
+  const handoff = validateHandoffGate(resolveHandoffOptions(context));
+  if (handoff.decision !== 'allow') {
+    return deny(`AIOX Sentinel ${label} gate blocked: ${handoff.reason}`);
+  }
+
+  const checklist = validateChecklistEvidence(resolveChecklistOptions(context));
+  if (checklist.decision !== 'allow') {
+    return deny(`AIOX Sentinel ${label} gate blocked: ${checklist.reason}`);
+  }
+
+  return {
+    decision: 'allow',
+    reason: `AIOX Sentinel ${label} gate passed`,
   };
 }
 
@@ -68,9 +91,113 @@ function extractAioxCommand(commandLine) {
   return match ? match[1] : commandLine;
 }
 
+function buildHookContext(input = {}, options = {}) {
+  const projectRoot = options.projectRoot
+    || input.projectRoot
+    || input.cwd
+    || input.workspacePaths?.[0]
+    || process.cwd();
+  const state = options.state || input.state || loadSentinelState(projectRoot);
+  const activeEngine = options.activeEngine || state?.active_engine || 'antigravity';
+  return {
+    input,
+    options,
+    projectRoot,
+    state,
+    activeEngine,
+  };
+}
+
+function evaluateIsolation(context) {
+  const isolation = validateEngineIsolation({
+    projectRoot: context.projectRoot,
+    activeEngine: context.activeEngine,
+  });
+
+  if (isolation.decision !== 'allow') {
+    return deny(isolation.reason);
+  }
+
+  return null;
+}
+
+function evaluateWorkflowContract(context, actualCommand) {
+  const workflowContract = context.state?.workflow_contract;
+  if (!workflowContract) {
+    return deny('AIOX Sentinel state is missing workflow_contract');
+  }
+
+  const contract = validateExpectedInvocation({
+    expectedAgent: workflowContract.expected_agent,
+    expectedCommand: workflowContract.expected_command,
+    actualAgent: workflowContract.current_agent,
+    actualCommand,
+  });
+
+  if (contract.decision !== 'allow') {
+    return deny(contract.reason);
+  }
+
+  return null;
+}
+
+function resolveActualCommandFromToolUse(input = {}, state = {}) {
+  const toolName = input.toolCall?.name || input.tool_name || '';
+  const args = input.toolCall?.args || input.args || {};
+  const commandLine = args.CommandLine || args.command || input.command || '';
+  return toolName === 'run_command'
+    ? extractAioxCommand(commandLine)
+    : state.workflow_contract?.current_command || state.workflow_contract?.expected_command;
+}
+
+function resolveActualCommandFromInvocation(input = {}, state = {}) {
+  return input.command
+    || input.invocation?.command
+    || input.toolCall?.args?.command
+    || state.workflow_contract?.current_command
+    || state.workflow_contract?.expected_command;
+}
+
+function resolveHandoffOptions(context) {
+  const handoffPath = context.options.handoffPath
+    || context.input.handoffPath
+    || context.state?.workflow_contract?.handoff_path;
+  return {
+    handoff: context.options.handoff || context.input.handoff || context.state?.handoff,
+    filePath: handoffPath,
+  };
+}
+
+function resolveChecklistOptions(context) {
+  const checklistPath = context.options.checklistPath
+    || context.input.checklistPath
+    || context.state?.checklist_path
+    || context.state?.workflow_contract?.checklist_path;
+  return {
+    content: context.options.checklistContent || context.input.checklistContent,
+    filePath: checklistPath,
+  };
+}
+
+function normalizeEvent(event) {
+  if (!event) return 'PreToolUse';
+  return String(event).trim();
+}
+
+function deny(reason) {
+  return {
+    decision: 'deny',
+    reason,
+  };
+}
+
 module.exports = {
   STATE_FILE,
+  evaluateAntiGravityHook,
+  evaluatePostInvocation,
+  evaluatePreInvocation,
   evaluatePreToolUse,
+  evaluateStop,
   extractAioxCommand,
   loadSentinelState,
 };

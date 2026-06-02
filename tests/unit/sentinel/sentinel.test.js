@@ -18,6 +18,9 @@ const {
   validateExpectedInvocation,
   validateHandoffGate,
   evaluatePreToolUse,
+  evaluatePostInvocation,
+  evaluatePreInvocation,
+  evaluateStop,
 } = require('../../../.aiox-core/core/sentinel');
 
 function makeTempProject() {
@@ -309,6 +312,29 @@ describe('AIOX Sentinel', () => {
   });
 
   describe('AntiGravity Hook', () => {
+    test('denies pre-tool use when workflow contract is missing', () => {
+      const projectRoot = makeTempProject();
+      mkdir(projectRoot, '.antigravity');
+
+      const result = evaluatePreToolUse({
+        toolCall: {
+          name: 'view_file',
+          args: {
+            AbsolutePath: path.join(projectRoot, 'README.md'),
+          },
+        },
+        workspacePaths: [projectRoot],
+      }, {
+        projectRoot,
+        state: {
+          active_engine: 'antigravity',
+        },
+      });
+
+      expect(result.decision).toBe('deny');
+      expect(result.reason).toContain('missing workflow_contract');
+    });
+
     test('allows non-command tool when engine isolation and workflow contract pass', () => {
       const projectRoot = makeTempProject();
       mkdir(projectRoot, '.antigravity');
@@ -362,6 +388,90 @@ describe('AIOX Sentinel', () => {
 
       expect(result.decision).toBe('deny');
       expect(result.reason).toContain('command mismatch');
+    });
+
+    test('allows pre-invocation when engine isolation and workflow contract pass', () => {
+      const projectRoot = makeTempProject();
+      mkdir(projectRoot, '.antigravity');
+
+      const result = evaluatePreInvocation({
+        workspacePaths: [projectRoot],
+      }, {
+        projectRoot,
+        state: {
+          active_engine: 'antigravity',
+          workflow_contract: {
+            current_agent: '@qa',
+            current_command: '*review story-1',
+            expected_agent: '@qa',
+            expected_command: '*review story-1',
+          },
+        },
+      });
+
+      expect(result.decision).toBe('allow');
+    });
+
+    test('denies post-invocation when checklist evidence is missing', () => {
+      const projectRoot = makeTempProject();
+      mkdir(projectRoot, '.antigravity');
+
+      const result = evaluatePostInvocation({
+        workspacePaths: [projectRoot],
+      }, {
+        projectRoot,
+        state: {
+          active_engine: 'antigravity',
+          workflow_contract: {
+            current_agent: '@qa',
+            current_command: '*review story-1',
+            expected_agent: '@qa',
+            expected_command: '*review story-1',
+          },
+          handoff: {
+            from_agent: '@dev',
+            to_agent: '@qa',
+            last_command: '*develop story-1',
+            next_agent: '@qa',
+            next_command: '*review story-1',
+            consumed: false,
+          },
+        },
+      });
+
+      expect(result.decision).toBe('deny');
+      expect(result.reason).toContain('Checklist evidence is missing');
+    });
+
+    test('allows stop when handoff and checklist evidence are complete', () => {
+      const projectRoot = makeTempProject();
+      mkdir(projectRoot, '.antigravity');
+
+      const result = evaluateStop({
+        workspacePaths: [projectRoot],
+        checklistContent: '- [x] Implemented\n- [N/A] Browser validation justificativa: backend-only\n',
+      }, {
+        projectRoot,
+        state: {
+          active_engine: 'antigravity',
+          workflow_contract: {
+            current_agent: '@qa',
+            current_command: '*review story-1',
+            expected_agent: '@qa',
+            expected_command: '*review story-1',
+          },
+          handoff: {
+            from_agent: '@dev',
+            to_agent: '@qa',
+            last_command: '*develop story-1',
+            next_agent: '@qa',
+            next_command: '*review story-1',
+            consumed: false,
+          },
+        },
+      });
+
+      expect(result.decision).toBe('allow');
     });
   });
 });

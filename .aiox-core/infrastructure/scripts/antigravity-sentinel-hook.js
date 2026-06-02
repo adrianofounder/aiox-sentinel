@@ -1,7 +1,12 @@
 #!/usr/bin/env node
 'use strict';
 
-const { evaluatePreToolUse } = require('../../core/sentinel/antigravity-hook');
+const { evaluateAntiGravityHook } = require('../../core/sentinel/antigravity-hook');
+
+function parseEvent(argv = process.argv.slice(2)) {
+  const index = argv.findIndex((arg) => arg === '--event');
+  return index >= 0 ? argv[index + 1] : null;
+}
 
 let input = '';
 process.stdin.setEncoding('utf8');
@@ -12,7 +17,9 @@ process.stdin.on('data', (chunk) => {
 process.stdin.on('end', () => {
   try {
     const payload = input.trim() ? JSON.parse(input) : {};
-    const result = evaluatePreToolUse(payload);
+    const result = evaluateAntiGravityHook(payload, {
+      event: parseEvent(),
+    });
     process.stdout.write(JSON.stringify(result));
   } catch (error) {
     process.stdout.write(JSON.stringify({
