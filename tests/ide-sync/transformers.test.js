@@ -223,6 +223,15 @@ describe('IDE Transformers', () => {
       expect(result).toContain('## Quick Commands');
     });
 
+    it('should include Sentinel guardrails for persona drift', () => {
+      const result = antigravity.transform(sampleAgent);
+
+      expect(result).toContain('## AIOX Sentinel Guardrails');
+      expect(result).toContain('workflow_state.current_agent');
+      expect(result).toContain('HALT');
+      expect(result).toContain('@dev (Dex)');
+    });
+
     it('should include All Commands if more than quick+key', () => {
       const result = antigravity.transform(sampleAgent);
       expect(result).toContain('## All Commands');

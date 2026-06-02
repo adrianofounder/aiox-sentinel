@@ -35,6 +35,15 @@ ${icon} **${title}**${archetype ? ` | ${archetype}` : ''}
 
 > ${whenToUse}
 
+## AIOX Sentinel Guardrails
+
+- Start by confirming this identity: @${agentData.id} (${name}).
+- If \`.aiox/config.yaml\` exists, read it before doing task work.
+- If \`workflow_state.current_agent\` is set and is not \`${agentData.id}\`, HALT and ask the user to activate the expected agent.
+- Do not execute responsibilities from another AIOX persona.
+- Do not hand off automatically. Produce the handoff summary, then HALT for explicit user activation.
+- If AntiGravity cannot read this agent state or file, state that it is running as AntiGravity base, then HALT.
+
 `;
 
   // Add quick commands section

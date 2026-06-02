@@ -9,6 +9,14 @@ You are working with Synkra AIOX, an AI-Orchestrated System for Full Stack Devel
 - Agent commands use * prefix: *help, *create-story, *task, *exit
 - Follow agent-specific workflows and patterns
 
+### AIOX Sentinel Guardrails
+- On every agent activation, confirm the active AIOX identity before doing task work
+- Read `.aiox/config.yaml` when present and respect `workflow_state.current_agent`
+- If the active workflow state points to a different agent, HALT and ask the user to activate that agent
+- Do not execute another persona's responsibilities, commands, approvals, or handoff decisions
+- Do not hand off automatically; write the handoff summary and HALT for explicit user activation
+- If the agent file or workflow state cannot be read, state that AntiGravity is running as base AntiGravity and HALT
+
 ### Story-Driven Development
 1. **Always work from a story file** in docs/stories/
 2. **Update story checkboxes** as you complete tasks: [ ] → [x]
@@ -28,6 +36,12 @@ You are working with Synkra AIOX, an AI-Orchestrated System for Full Stack Devel
 - Add tests for new features
 
 ## AIOX Framework Structure
+
+Canonical v4/v5 source paths:
+- Agents: `.aiox-core/development/agents`
+- Tasks: `.aiox-core/development/tasks`
+- Workflows: `.aiox-core/development/workflows`
+- Templates: `.aiox-core/product/templates`
 
 ```
 aiox-core/

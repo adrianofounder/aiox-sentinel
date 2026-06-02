@@ -439,15 +439,18 @@ description: Ativa o agente ${displayName}
 
 # Ativação do Agente ${displayName}
 
-**INSTRUÇÕES CRÍTICAS PARA O ANTIGRAVITY:**
+**AIOX Sentinel Preflight para AntiGravity:**
 
-1. Leia COMPLETAMENTE o arquivo \`.antigravity/agents/${agentName}.md\`
-2. Siga EXATAMENTE as \`activation-instructions\` definidas no bloco YAML do agente
-3. Adote a persona conforme definido no agente
-4. Execute a saudação conforme \`greeting_levels\` definido no agente
-5. **MANTENHA esta persona até receber o comando \`*exit\`**
-6. Responda aos comandos com prefixo \`*\` conforme definido no agente
-7. Siga as regras globais do projeto em \`.antigravity/rules.md\`
+1. Leia \`.aiox/config.yaml\` se o arquivo existir.
+2. Se \`workflow_state.current_agent\` existir e não for \`${agentName}\`, HALT e peça ao usuário para ativar o agente esperado.
+3. Leia COMPLETAMENTE o arquivo \`.antigravity/agents/${agentName}.md\`.
+4. Adote somente a persona \`${agentName}\` e siga as \`activation-instructions\` do YAML do agente.
+5. Execute a saudação conforme \`greeting_levels\` definido no agente.
+6. **MANTENHA esta persona até receber o comando \`*exit\`**.
+7. Não assuma tarefas, comandos ou decisões de outro agente AIOX.
+8. Não faça handoff automático. Ao concluir, gere o resumo de handoff e HALT para ativação explícita do usuário.
+9. Se não conseguir ler o estado ou o arquivo do agente, declare que está rodando como AntiGravity base e HALT.
+10. Siga as regras globais do projeto em \`.antigravity/rules.md\`.
 
 **Comandos disponíveis:** Use \`*help\` para ver todos os comandos do agente.
 `;
@@ -485,8 +488,13 @@ async function createAntiGravityConfigJson(projectRoot, ideConfig) {
       stories: 'docs/stories',
       prd: 'docs/prd',
       architecture: 'docs/architecture',
-      tasks: '.aiox-core/tasks',
-      workflows: '.aiox-core/workflows',
+      tasks: '.aiox-core/development/tasks',
+      workflows: '.aiox-core/development/workflows',
+    },
+    hooks: {
+      enabled: true,
+      file: path.join('.antigravity', 'hooks.json').replace(/\\/g, '/'),
+      sentinel: '.aiox-core/infrastructure/scripts/antigravity-sentinel-hook.js',
     },
   };
 
@@ -494,6 +502,50 @@ async function createAntiGravityConfigJson(projectRoot, ideConfig) {
   await fs.writeFile(configPath, JSON.stringify(config, null, 4), 'utf8');
 
   return configPath;
+}
+
+/**
+ * Create AntiGravity hooks.json with a deterministic Sentinel PreToolUse gate.
+ * @param {string} projectRoot - Project root directory
+ * @returns {Promise<string>} Path to created hooks.json
+ */
+async function createAntiGravityHooksJson(projectRoot) {
+  const hooksPath = path.join(projectRoot, '.antigravity', 'hooks.json');
+  const hookCommand = 'node ".aiox-core/infrastructure/scripts/antigravity-sentinel-hook.js"';
+  const hooks = {
+    'aiox-sentinel': {
+      enabled: true,
+      PreToolUse: [
+        {
+          matcher: [
+            'run_command',
+            'view_file',
+            'write_to_file',
+            'replace_file_content',
+            'multi_replace_file_content',
+            'list_dir',
+            'find_by_name',
+            'grep_search',
+            'invoke_subagent',
+            'define_subagent',
+            'send_message',
+            'manage_subagents',
+          ].join('|'),
+          hooks: [
+            {
+              type: 'command',
+              command: hookCommand,
+              timeout: 10,
+            },
+          ],
+        },
+      ],
+    },
+  };
+
+  await fs.ensureDir(path.dirname(hooksPath));
+  await fs.writeFile(hooksPath, JSON.stringify(hooks, null, 2), 'utf8');
+  return hooksPath;
 }
 
 /**
@@ -631,8 +683,10 @@ async function generateIDEConfigs(selectedIDEs, wizardState, options = {}) {
           // For AntiGravity, also create the antigravity.json config file
           if (ide.specialConfig && ide.specialConfig.type === 'antigravity') {
             const configJsonPath = await createAntiGravityConfigJson(projectRoot, ide);
+            const hooksJsonPath = await createAntiGravityHooksJson(projectRoot);
             createdFiles.push(configJsonPath);
-            spinner.succeed(`Created AntiGravity config and ${agentFiles.length} workflow files`);
+            createdFiles.push(hooksJsonPath);
+            spinner.succeed(`Created AntiGravity config, Sentinel hook, and ${agentFiles.length} workflow files`);
           } else {
             spinner.succeed(`Copied ${agentFiles.length} agent files to ${ide.agentFolder}`);
           }
@@ -1416,5 +1470,8 @@ module.exports = {
   // Internal helpers exported for testing
   _testing: {
     isNonInteractive,
+    generateAntiGravityWorkflow,
+    createAntiGravityConfigJson,
+    createAntiGravityHooksJson,
   },
 };

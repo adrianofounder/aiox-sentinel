@@ -16,6 +16,7 @@ const {
   createCursorMdcFallbackContent,
   linkGeminiExtension,
   HOOK_EVENT_MAP,
+  _testing,
 } = require('../../../packages/installer/src/wizard/ide-config-generator');
 
 describe('IDE Config Generator', () => {
@@ -247,6 +248,78 @@ describe('IDE Config Generator', () => {
       // AntiGravity uses .antigravity/rules.md
       const configPath = path.join(testDir, '.antigravity', 'rules.md');
       expect(await fs.pathExists(configPath)).toBe(true);
+    });
+
+    it('should generate AntiGravity Sentinel workflow activation files', async () => {
+      const selectedIDEs = ['antigravity'];
+      const wizardState = { projectName: 'test', projectType: 'greenfield' };
+
+      const result = await generateIDEConfigs(selectedIDEs, wizardState, {
+        projectRoot: testDir,
+      });
+
+      expect(result.success).toBe(true);
+
+      const workflowPath = path.join(testDir, '.agent', 'workflows', 'dev.md');
+      const content = await fs.readFile(workflowPath, 'utf8');
+
+      expect(content).toContain('AIOX Sentinel Preflight');
+      expect(content).toContain('.aiox/config.yaml');
+      expect(content).toContain('workflow_state.current_agent');
+      expect(content).toContain('.antigravity/agents/dev.md');
+      expect(content).toContain('HALT');
+    });
+
+    it('should create AntiGravity config with v4/v5 development paths', async () => {
+      const selectedIDEs = ['antigravity'];
+      const wizardState = { projectName: 'test', projectType: 'greenfield' };
+
+      const result = await generateIDEConfigs(selectedIDEs, wizardState, {
+        projectRoot: testDir,
+      });
+
+      expect(result.success).toBe(true);
+
+      const configPath = path.join(testDir, '.antigravity', 'antigravity.json');
+      const config = JSON.parse(await fs.readFile(configPath, 'utf8'));
+
+      expect(config.paths.tasks).toBe('.aiox-core/development/tasks');
+      expect(config.paths.workflows).toBe('.aiox-core/development/workflows');
+      expect(config.hooks.enabled).toBe(true);
+      expect(config.hooks.sentinel).toBe('.aiox-core/infrastructure/scripts/antigravity-sentinel-hook.js');
+    });
+
+    it('should create AntiGravity Sentinel hooks.json with PreToolUse gate', async () => {
+      const selectedIDEs = ['antigravity'];
+      const wizardState = { projectName: 'test', projectType: 'greenfield' };
+
+      const result = await generateIDEConfigs(selectedIDEs, wizardState, {
+        projectRoot: testDir,
+      });
+
+      expect(result.success).toBe(true);
+
+      const hooksPath = path.join(testDir, '.antigravity', 'hooks.json');
+      const hooks = JSON.parse(await fs.readFile(hooksPath, 'utf8'));
+      const sentinel = hooks['aiox-sentinel'];
+
+      expect(sentinel.enabled).toBe(true);
+      expect(sentinel.PreToolUse[0].matcher).toContain('run_command');
+      expect(sentinel.PreToolUse[0].matcher).toContain('write_to_file');
+      expect(sentinel.PreToolUse[0].hooks[0].command).toBe(
+        'node ".aiox-core/infrastructure/scripts/antigravity-sentinel-hook.js"',
+      );
+    });
+
+    it('should expose AntiGravity helpers for focused unit coverage', () => {
+      const workflow = _testing.generateAntiGravityWorkflow('qa');
+
+      expect(workflow).toContain('AIOX Sentinel Preflight');
+      expect(workflow).toContain('workflow_state.current_agent');
+      expect(workflow).toContain('.antigravity/agents/qa.md');
+      expect(workflow).toContain('HALT');
+      expect(_testing.createAntiGravityConfigJson).toBeDefined();
+      expect(_testing.createAntiGravityHooksJson).toBeDefined();
     });
 
     it('should render template with variables', async () => {
