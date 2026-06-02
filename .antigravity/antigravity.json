@@ -1,0 +1,31 @@
+{
+    "version": "1.0",
+    "project": "aiox-sentinel",
+    "workspace": "D:/aiox-sentinel",
+    "agents": {
+        "enabled": true,
+        "directory": ".antigravity/rules/agents",
+        "default": "aiox-master"
+    },
+    "rules": {
+        "enabled": true,
+        "file": ".antigravity/rules/antigravity-rules.md"
+    },
+    "features": {
+        "storyDrivenDevelopment": true,
+        "agentActivation": true,
+        "workflowAutomation": true
+    },
+    "paths": {
+        "stories": "docs/stories",
+        "prd": "docs/prd",
+        "architecture": "docs/architecture",
+        "tasks": ".aiox-core/development/tasks",
+        "workflows": ".aiox-core/development/workflows"
+    },
+    "hooks": {
+        "enabled": true,
+        "file": ".antigravity/hooks.json",
+        "sentinel": ".aiox-core/infrastructure/scripts/antigravity-sentinel-hook.js"
+    }
+}
