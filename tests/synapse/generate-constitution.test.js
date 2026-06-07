@@ -378,12 +378,16 @@ describe('generateConstitution', () => {
 
 describe('main', () => {
   let tempDir;
+  let originalExitCode;
 
   beforeEach(() => {
+    originalExitCode = process.exitCode;
+    process.exitCode = undefined;
     tempDir = createTempDir();
   });
 
   afterEach(() => {
+    process.exitCode = originalExitCode;
     cleanupTempDir(tempDir);
   });
 

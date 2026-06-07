@@ -9,6 +9,7 @@
 
 const path = require('path');
 const fs = require('fs');
+const { isClaudeDisabled, disabledResult } = require('./engine-disabled');
 
 const name = 'rules-files';
 
@@ -23,6 +24,10 @@ const EXPECTED_RULES = [
 ];
 
 async function run(context) {
+  if (isClaudeDisabled(context)) {
+    return disabledResult(name);
+  }
+
   const rulesDir = path.join(context.projectRoot, '.claude', 'rules');
 
   if (!fs.existsSync(rulesDir)) {

@@ -8,6 +8,13 @@
 
 const EventEmitter = require('events');
 
+function unrefTimer(timer) {
+  if (timer && typeof timer.unref === 'function') {
+    timer.unref();
+  }
+  return timer;
+}
+
 class ParallelMonitor extends EventEmitter {
   constructor(config = {}) {
     super();
@@ -166,9 +173,9 @@ class ParallelMonitor extends EventEmitter {
       this.broadcast('task_completed', { taskId, task });
 
       // Remove from active after delay
-      setTimeout(() => {
+      unrefTimer(setTimeout(() => {
         this.activeTasks.delete(taskId);
-      }, 10000);
+      }, 10000));
     }
   }
 
@@ -193,9 +200,9 @@ class ParallelMonitor extends EventEmitter {
       this.broadcast('wave_completed', { waveId, wave });
 
       // Move to history after delay
-      setTimeout(() => {
+      unrefTimer(setTimeout(() => {
         this.activeWaves.delete(waveId);
-      }, 30000);
+      }, 30000));
     }
   }
 

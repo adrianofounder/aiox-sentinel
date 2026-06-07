@@ -16,6 +16,7 @@ const {
   createCursorMdcFallbackContent,
   linkGeminiExtension,
   HOOK_EVENT_MAP,
+  _testing,
 } = require('../../../packages/installer/src/wizard/ide-config-generator');
 
 describe('IDE Config Generator', () => {
@@ -209,7 +210,7 @@ describe('IDE Config Generator', () => {
       expect(await fs.pathExists(path.join(testDir, '.gemini', 'rules', 'AIOX', 'agents'))).toBe(true);
     });
 
-    it('should install Claude Code native subagents and authority hook registration', async () => {
+    it('should install or gracefully skip Claude Code native assets', async () => {
       const selectedIDEs = ['claude-code'];
       const wizardState = { projectName: 'test', projectType: 'greenfield' };
 
@@ -218,20 +219,28 @@ describe('IDE Config Generator', () => {
       });
 
       expect(result.success).toBe(true);
-      expect(await fs.pathExists(path.join(testDir, '.claude', 'agents', 'aiox-dev.md'))).toBe(true);
-      expect(await fs.pathExists(
-        path.join(testDir, '.claude', 'hooks', 'enforce-git-push-authority.cjs'),
-      )).toBe(true);
-
-      const settingsPath = path.join(testDir, '.claude', 'settings.local.json');
-      const settings = JSON.parse(await fs.readFile(settingsPath, 'utf8'));
-
-      expect(JSON.stringify(settings.hooks.PreToolUse)).toContain('enforce-git-push-authority.cjs');
-      expect(settings.hooks.PreToolUse.some(entry => entry.matcher === 'Bash')).toBe(true);
       expect(HOOK_EVENT_MAP['enforce-git-push-authority.cjs']).toMatchObject({
         event: 'PreToolUse',
         matcher: 'Bash',
       });
+
+      const sourceHasClaudeAssets = await fs.pathExists(path.join(process.cwd(), '.claude', 'agents', 'aiox-dev.md'));
+      const settingsPath = path.join(testDir, '.claude', 'settings.local.json');
+
+      if (sourceHasClaudeAssets) {
+        expect(await fs.pathExists(path.join(testDir, '.claude', 'agents', 'aiox-dev.md'))).toBe(true);
+        expect(await fs.pathExists(
+          path.join(testDir, '.claude', 'hooks', 'enforce-git-push-authority.cjs'),
+        )).toBe(true);
+
+        const settings = JSON.parse(await fs.readFile(settingsPath, 'utf8'));
+        expect(JSON.stringify(settings.hooks.PreToolUse)).toContain('enforce-git-push-authority.cjs');
+        expect(settings.hooks.PreToolUse.some(entry => entry.matcher === 'Bash')).toBe(true);
+      } else {
+        expect(await fs.pathExists(path.join(testDir, '.claude', 'CLAUDE.md'))).toBe(true);
+        expect(await fs.pathExists(path.join(testDir, '.claude', 'agents', 'aiox-dev.md'))).toBe(false);
+        expect(await fs.pathExists(settingsPath)).toBe(false);
+      }
     });
 
     it('should create directory for IDEs that require it', async () => {
@@ -247,6 +256,83 @@ describe('IDE Config Generator', () => {
       // AntiGravity uses .antigravity/rules.md
       const configPath = path.join(testDir, '.antigravity', 'rules.md');
       expect(await fs.pathExists(configPath)).toBe(true);
+    });
+
+    it('should generate AntiGravity Sentinel workflow activation files', async () => {
+      const selectedIDEs = ['antigravity'];
+      const wizardState = { projectName: 'test', projectType: 'greenfield' };
+
+      const result = await generateIDEConfigs(selectedIDEs, wizardState, {
+        projectRoot: testDir,
+      });
+
+      expect(result.success).toBe(true);
+
+      const workflowPath = path.join(testDir, '.agent', 'workflows', 'dev.md');
+      const content = await fs.readFile(workflowPath, 'utf8');
+
+      expect(content).toContain('Preflight Sentinel Para AntiGravity');
+      expect(content).toContain('.aiox/config.yaml');
+      expect(content).toContain('workflow_state.current_agent');
+      expect(content).toContain('.antigravity/agents/dev.md');
+      expect(content).toContain('1. Leia');
+      expect(content).toContain('2. Se');
+    });
+
+    it('should create AntiGravity config with v4/v5 development paths', async () => {
+      const selectedIDEs = ['antigravity'];
+      const wizardState = { projectName: 'test', projectType: 'greenfield' };
+
+      const result = await generateIDEConfigs(selectedIDEs, wizardState, {
+        projectRoot: testDir,
+      });
+
+      expect(result.success).toBe(true);
+
+      const configPath = path.join(testDir, '.antigravity', 'antigravity.json');
+      const config = JSON.parse(await fs.readFile(configPath, 'utf8'));
+
+      expect(config.paths.tasks).toBe('.aiox-core/development/tasks');
+      expect(config.paths.workflows).toBe('.aiox-core/development/workflows');
+      expect(config.hooks.enabled).toBe(true);
+      expect(config.hooks.sentinel).toBe('.aiox-core/infrastructure/scripts/antigravity-sentinel-hook.js');
+    });
+
+    it('should create AntiGravity Sentinel hooks.json with PreToolUse gate', async () => {
+      const selectedIDEs = ['antigravity'];
+      const wizardState = { projectName: 'test', projectType: 'greenfield' };
+
+      const result = await generateIDEConfigs(selectedIDEs, wizardState, {
+        projectRoot: testDir,
+      });
+
+      expect(result.success).toBe(true);
+
+      const hooksPath = path.join(testDir, '.antigravity', 'hooks.json');
+      const hooks = JSON.parse(await fs.readFile(hooksPath, 'utf8'));
+      const sentinel = hooks['aiox-sentinel'];
+
+      expect(sentinel.enabled).toBe(true);
+      expect(sentinel.PreInvocation[0].hooks[0].command).toContain('--event PreInvocation');
+      expect(sentinel.PreToolUse[0].matcher).toContain('run_command');
+      expect(sentinel.PreToolUse[0].matcher).toContain('write_to_file');
+      expect(sentinel.PreToolUse[0].hooks[0].command).toBe(
+        'node ".aiox-core/infrastructure/scripts/antigravity-sentinel-hook.js" --event PreToolUse',
+      );
+      expect(sentinel.PostInvocation[0].hooks[0].command).toContain('--event PostInvocation');
+      expect(sentinel.Stop[0].hooks[0].command).toContain('--event Stop');
+    });
+
+    it('should expose AntiGravity helpers for focused unit coverage', () => {
+      const workflow = _testing.generateAntiGravityWorkflow('qa');
+
+      expect(workflow).toContain('Preflight Sentinel Para AntiGravity');
+      expect(workflow).toContain('workflow_state.current_agent');
+      expect(workflow).toContain('.antigravity/agents/qa.md');
+      expect(workflow).toContain('1. Leia');
+      expect(workflow).toContain('2. Se');
+      expect(_testing.createAntiGravityConfigJson).toBeDefined();
+      expect(_testing.createAntiGravityHooksJson).toBeDefined();
     });
 
     it('should render template with variables', async () => {

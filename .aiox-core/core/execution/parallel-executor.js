@@ -7,6 +7,13 @@
 
 const EventEmitter = require('events');
 
+function unrefTimer(timer) {
+  if (timer && typeof timer.unref === 'function') {
+    timer.unref();
+  }
+  return timer;
+}
+
 /**
  * Parallel execution modes
  */
@@ -217,16 +224,26 @@ class ParallelExecutor extends EventEmitter {
    * Wrap execution with timeout and error handling
    */
   async _wrapExecution(provider, executor) {
+    let timeoutId;
+
     try {
+      const timeoutPromise = new Promise((_, reject) => {
+        timeoutId = unrefTimer(
+          setTimeout(() => reject(new Error('Timeout')), this.timeout),
+        );
+      });
+
       const result = await Promise.race([
         executor(),
-        new Promise((_, reject) =>
-          setTimeout(() => reject(new Error('Timeout')), this.timeout),
-        ),
+        timeoutPromise,
       ]);
       return { ...result, provider };
     } catch (error) {
       return { success: false, error: error.message, provider };
+    } finally {
+      if (timeoutId) {
+        clearTimeout(timeoutId);
+      }
     }
   }
 

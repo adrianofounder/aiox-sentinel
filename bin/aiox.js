@@ -724,6 +724,9 @@ Options:
   --quiet      Minimal output (no banner, no prompts) - ideal for CI/CD
   --dry-run    Simulate installation without modifying files
   --ide <ide>  Configure a specific IDE during quiet/CI install
+  --language <language>
+               Configure installer language (en, pt, es)
+  --strict     Materialize only the selected IDE artifacts
   --merge      Auto-merge existing config files (brownfield mode)
   --no-merge   Disable merge option, use legacy overwrite behavior
   -h, --help   Show this help message
@@ -754,6 +757,9 @@ Examples:
 
   # Explicit CI install with Claude Code files materialized
   npx aiox-core install --ci --yes --ide claude-code
+
+  # Strict AntiGravity install in Portuguese
+  npx aiox-core install --ci --yes --strict --ide antigravity --language pt
 
   # Preview what would be installed
   npx aiox-core install --dry-run
@@ -934,15 +940,18 @@ async function main() {
       const isCi = installArgs.includes('--ci');
       const isYes = installArgs.includes('--yes') || installArgs.includes('-y');
       const ideIndex = installArgs.indexOf('--ide');
+      const languageIndex = installArgs.indexOf('--language');
       const installOptions = {
         force: installArgs.includes('--force') || isYes || isCi,
         yes: isYes,
         ci: isCi,
         quiet: installArgs.includes('--quiet') || isCi,
         dryRun: installArgs.includes('--dry-run'),
+        strict: installArgs.includes('--strict'),
         forceMerge: installArgs.includes('--merge'),
         noMerge: installArgs.includes('--no-merge'),
         ide: ideIndex >= 0 ? installArgs[ideIndex + 1] : null,
+        language: languageIndex >= 0 ? installArgs[languageIndex + 1] : null,
       };
       if (!installOptions.quiet) {
         console.log('AIOX-FullStack Installation\n');

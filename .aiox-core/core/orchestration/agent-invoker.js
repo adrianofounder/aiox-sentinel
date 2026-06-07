@@ -22,6 +22,13 @@ const fs = require('fs-extra');
 const path = require('path');
 const EventEmitter = require('events');
 
+function unrefTimer(timer) {
+  if (timer && typeof timer.unref === 'function') {
+    timer.unref();
+  }
+  return timer;
+}
+
 // ═══════════════════════════════════════════════════════════════════════════════════
 //                              SUPPORTED AGENTS (AC2)
 // ═══════════════════════════════════════════════════════════════════════════════════
@@ -419,12 +426,24 @@ class AgentInvoker extends EventEmitter {
    * @private
    */
   async _executeWithTimeout(fn, timeout) {
-    return Promise.race([
-      fn(),
-      new Promise((_, reject) =>
-        setTimeout(() => reject(new Error('Task execution timed out')), timeout),
-      ),
-    ]);
+    let timeoutId;
+
+    try {
+      const timeoutPromise = new Promise((_, reject) => {
+        timeoutId = unrefTimer(
+          setTimeout(() => reject(new Error('Task execution timed out')), timeout),
+        );
+      });
+
+      return await Promise.race([
+        fn(),
+        timeoutPromise,
+      ]);
+    } finally {
+      if (timeoutId) {
+        clearTimeout(timeoutId);
+      }
+    }
   }
 
   /**

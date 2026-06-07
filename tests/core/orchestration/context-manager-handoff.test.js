@@ -35,7 +35,7 @@ describe('ContextManager structured handoff package', () => {
           checks: [{ type: 'file_exists', path: 'docs/spec.md', passed: true }],
         },
       },
-      { handoffTarget: { phase: 2, agent: 'dev' } },
+      { handoffTarget: { phase: 2, agent: 'dev', command: '*develop {story-id}' } },
     );
 
     const state = await manager.loadState();
@@ -47,11 +47,47 @@ describe('ContextManager structured handoff package', () => {
     expect(handoff.from.agent).toBe('architect');
     expect(handoff.to.phase).toBe(2);
     expect(handoff.to.agent).toBe('dev');
+    expect(handoff.from_agent).toBe('@architect');
+    expect(handoff.to_agent).toBe('@dev');
+    expect(handoff.next_agent).toBe('@dev');
+    expect(handoff.next_command).toBe('*develop {story-id}');
     expect(handoff.context_snapshot.current_phase).toBe(1);
     expect(handoff.context_snapshot.workflow_status).toBe('in_progress');
     expect(handoff.decision_log.count).toBe(1);
     expect(handoff.evidence_links).toContain('docs/spec.md');
     expect(handoff.open_risks).toContain('Gateway latency spike');
+  });
+
+  it('writes Sentinel state with expected agent and command', async () => {
+    await manager.savePhaseOutput(
+      2,
+      {
+        agent: 'dev',
+        action: 'develop story-1',
+        command: '*develop story-1',
+        task: 'dev-develop-story.md',
+        result: { decisions: [] },
+      },
+      {
+        handoffTarget: {
+          phase: 3,
+          agent: 'qa',
+          command: '*review story-1',
+        },
+      },
+    );
+
+    const sentinelPath = path.join(tempDir, '.aiox', 'sentinel', 'state.json');
+    const exists = await fs.pathExists(sentinelPath);
+    const sentinel = await fs.readJson(sentinelPath);
+
+    expect(exists).toBe(true);
+    expect(sentinel.active_engine).toBe('antigravity');
+    expect(sentinel.workflow_contract.current_agent).toBe('@qa');
+    expect(sentinel.workflow_contract.current_command).toBe('*review story-1');
+    expect(sentinel.workflow_contract.expected_agent).toBe('@qa');
+    expect(sentinel.workflow_contract.expected_command).toBe('*review story-1');
+    expect(sentinel.workflow_contract.handoff_path).toContain('test-workflow-phase-2.handoff.json');
   });
 
   it('writes handoff artifact file to handoffs directory', async () => {

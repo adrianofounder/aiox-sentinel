@@ -9,7 +9,7 @@
 
 const path = require('path');
 const fs = require('fs');
-const { execSync } = require('child_process');
+const { execSync, spawnSync } = require('child_process');
 
 const PKG_DIR = path.resolve(__dirname, '../../../packages/aiox-install');
 
@@ -178,13 +178,15 @@ describe('Integration - Task 8.3: Local NPX Execution', () => {
       const binPath = path.join(PKG_DIR, 'bin/aiox-install.js');
 
       // When
-      const result = execSync(`node "${binPath}" --invalid-flag 2>&1 || true`, {
+      const result = spawnSync(process.execPath, [binPath, '--invalid-flag'], {
         encoding: 'utf8',
         timeout: 10000,
       });
+      const output = `${result.stdout || ''}${result.stderr || ''}`;
 
       // Then
-      expect(result).toContain('error');
+      expect(result.status).not.toBe(0);
+      expect(output).toContain('error');
     });
   });
 

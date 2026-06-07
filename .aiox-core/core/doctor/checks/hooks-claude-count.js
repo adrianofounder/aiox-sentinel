@@ -12,10 +12,15 @@
 
 const path = require('path');
 const fs = require('fs');
+const { isClaudeDisabled, disabledResult } = require('./engine-disabled');
 
 const name = 'hooks-claude-count';
 
 async function run(context) {
+  if (isClaudeDisabled(context)) {
+    return disabledResult(name);
+  }
+
   const hooksDir = path.join(context.projectRoot, '.claude', 'hooks');
 
   if (!fs.existsSync(hooksDir)) {

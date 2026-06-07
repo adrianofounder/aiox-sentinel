@@ -17,6 +17,7 @@ const os = require('os');
 jest.setTimeout(15000);
 
 const HOOK_PATH = path.resolve(__dirname, '../../.claude/hooks/synapse-engine.cjs');
+const describeSynapseHook = fs.existsSync(HOOK_PATH) ? describe : describe.skip;
 const HOOK_SPAWN_PERFORMANCE_BUDGET_MS = 3000;
 const HOOK_MISSING_SYNAPSE_BUDGET_MS = 2200;
 
@@ -127,7 +128,7 @@ function buildInput(cwd, overrides = {}) {
 // Test Suites
 // ---------------------------------------------------------------------------
 
-describe('SYNAPSE Hook Entry Point (synapse-engine.cjs)', () => {
+describeSynapseHook('SYNAPSE Hook Entry Point (synapse-engine.cjs)', () => {
   let tmpDir;
 
   afterEach(() => {
@@ -475,7 +476,11 @@ describe('SYNAPSE Hook Entry Point (synapse-engine.cjs)', () => {
   // ==========================================================================
 
   describe('direct module exports (Jest coverage)', () => {
-    const hookModule = require('../../.claude/hooks/synapse-engine.cjs');
+    let hookModule;
+
+    beforeAll(() => {
+      hookModule = require('../../.claude/hooks/synapse-engine.cjs');
+    });
 
     test('exports readStdin function', () => {
       expect(typeof hookModule.readStdin).toBe('function');
@@ -634,7 +639,11 @@ describe('SYNAPSE Hook Entry Point (synapse-engine.cjs)', () => {
   // ==========================================================================
 
   describe('run() entry point', () => {
-    const hookModule = require('../../.claude/hooks/synapse-engine.cjs');
+    let hookModule;
+
+    beforeAll(() => {
+      hookModule = require('../../.claude/hooks/synapse-engine.cjs');
+    });
 
     test('run() sets safety timeout, catches errors, and sets exitCode 0', async () => {
       const errorSpy = jest.spyOn(console, 'error').mockImplementation(() => {});

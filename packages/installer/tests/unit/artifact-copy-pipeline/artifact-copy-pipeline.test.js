@@ -22,13 +22,14 @@ function cleanup(dir) {
   fs.rmSync(dir, { recursive: true, force: true });
 }
 
-function expectedAvailableHooks(...fileNames) {
-  const hooksDir = path.join(__dirname, '../../../../../.claude/hooks');
-  if (!fs.existsSync(hooksDir)) {
-    throw new Error(`Expected Claude hooks source directory at ${hooksDir}`);
+function createClaudeHooksSource(fileNames) {
+  const sourceRoot = createTempDir();
+  const hooksDir = path.join(sourceRoot, '.claude', 'hooks');
+  fs.mkdirSync(hooksDir, { recursive: true });
+  for (const fileName of fileNames) {
+    fs.writeFileSync(path.join(hooksDir, fileName), `// ${fileName}\n`, 'utf8');
   }
-  const available = new Set(fs.readdirSync(hooksDir));
-  return fileNames.filter(file => available.has(file)).sort();
+  return sourceRoot;
 }
 
 describe('artifact-copy-pipeline (Story INS-4.3)', () => {
@@ -182,17 +183,24 @@ describe('artifact-copy-pipeline (Story INS-4.3)', () => {
   describe('copyClaudeHooksFolder tier selection (Issue #544)', () => {
     test('free tier copies only free hooks and does not register PreCompact', async () => {
       const targetRoot = createTempDir();
+      const sourceRoot = createClaudeHooksSource([
+        'README.md',
+        'code-intel-pretool.cjs',
+        'enforce-git-push-authority.cjs',
+        'precompact-session-digest.cjs',
+        'synapse-engine.cjs',
+      ]);
 
       try {
-        const copied = await copyClaudeHooksFolder(targetRoot, { tier: 'free' });
+        const copied = await copyClaudeHooksFolder(targetRoot, { tier: 'free' }, sourceRoot);
         const fileNames = copied.map(file => path.basename(file)).sort();
 
-        expect(fileNames).toEqual(expectedAvailableHooks(
+        expect(fileNames).toEqual([
           'README.md',
           'code-intel-pretool.cjs',
           'enforce-git-push-authority.cjs',
           'synapse-engine.cjs',
-        ));
+        ].sort());
 
         const settingsPath = await createClaudeSettingsLocal(targetRoot);
         expect(settingsPath).toEqual(expect.any(String));
@@ -210,24 +218,32 @@ describe('artifact-copy-pipeline (Story INS-4.3)', () => {
         }
         expect(settings.hooks.PreCompact).toBeUndefined();
       } finally {
+        cleanup(sourceRoot);
         cleanup(targetRoot);
       }
     });
 
     test('pro tier copies free hooks plus PreCompact session digest hook', async () => {
       const targetRoot = createTempDir();
+      const sourceRoot = createClaudeHooksSource([
+        'README.md',
+        'code-intel-pretool.cjs',
+        'enforce-git-push-authority.cjs',
+        'precompact-session-digest.cjs',
+        'synapse-engine.cjs',
+      ]);
 
       try {
-        const copied = await copyClaudeHooksFolder(targetRoot, { tier: 'pro' });
+        const copied = await copyClaudeHooksFolder(targetRoot, { tier: 'pro' }, sourceRoot);
         const fileNames = copied.map(file => path.basename(file)).sort();
 
-        expect(fileNames).toEqual(expectedAvailableHooks(
+        expect(fileNames).toEqual([
           'README.md',
           'code-intel-pretool.cjs',
           'enforce-git-push-authority.cjs',
           'precompact-session-digest.cjs',
           'synapse-engine.cjs',
-        ));
+        ].sort());
 
         const settingsPath = await createClaudeSettingsLocal(targetRoot);
         expect(settingsPath).toEqual(expect.any(String));
@@ -245,6 +261,7 @@ describe('artifact-copy-pipeline (Story INS-4.3)', () => {
         }
         expect(settings.hooks.PreCompact).toHaveLength(1);
       } finally {
+        cleanup(sourceRoot);
         cleanup(targetRoot);
       }
     });

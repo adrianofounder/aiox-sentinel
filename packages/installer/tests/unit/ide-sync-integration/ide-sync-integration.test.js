@@ -64,8 +64,9 @@ describe('IDE Sync Integration (Story INS-4.5)', () => {
       expect(wizardSource).toMatch(/finally\s*\{[^}]*process\.chdir\(savedCwd\)/s);
     });
 
-    test('commandSync called with { quiet: true }', () => {
-      expect(wizardSource).toContain('await commandSync({ quiet: true })');
+    test('commandSync called with syncOptions', () => {
+      expect(wizardSource).toContain('const syncOptions = strictIde ? { quiet: true, ide: strictIde } : { quiet: true }');
+      expect(wizardSource).toContain('await commandSync(syncOptions)');
     });
 
     test('does NOT pass projectRoot or ides as parameters to commandSync', () => {
@@ -97,7 +98,7 @@ describe('IDE Sync Integration (Story INS-4.5)', () => {
   describe('AC4: Validate sync output', () => {
     test('commandValidate called after commandSync', () => {
       // commandValidate should appear after commandSync in the source
-      const syncIndex = wizardSource.indexOf('await commandSync({ quiet: true })');
+      const syncIndex = wizardSource.indexOf('await commandSync(syncOptions)');
       const validateIndex = wizardSource.indexOf('await commandValidate(');
       expect(syncIndex).toBeGreaterThan(-1);
       expect(validateIndex).toBeGreaterThan(-1);
@@ -108,7 +109,7 @@ describe('IDE Sync Integration (Story INS-4.5)', () => {
       // Both commandSync and commandValidate should be within the same
       // saved cwd / finally block
       const savedCwdIndex = wizardSource.indexOf('const savedCwd = process.cwd()');
-      const syncIndex = wizardSource.indexOf('await commandSync({ quiet: true })');
+      const syncIndex = wizardSource.indexOf('await commandSync(syncOptions)');
       const validateIndex = wizardSource.indexOf('await commandValidate(');
       const finallyIndex = wizardSource.indexOf('process.chdir(savedCwd)');
 

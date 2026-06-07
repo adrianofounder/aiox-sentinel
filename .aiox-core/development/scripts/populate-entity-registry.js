@@ -172,6 +172,14 @@ function extractKeywords(filePath, content) {
   return [...new Set(parts.map((p) => p.toLowerCase()))];
 }
 
+function toRegistryRelativePath(filePath, repoRoot = REPO_ROOT) {
+  return path.relative(repoRoot, filePath).replace(/\\/g, '/');
+}
+
+function truncatePurpose(value) {
+  return String(value).substring(0, 200).trimEnd();
+}
+
 /**
  * Detects whether a candidate purpose string is actually a template placeholder
  * or unfilled literal, rather than a real description.
@@ -234,7 +242,7 @@ function extractPurpose(content, filePath) {
     if (fmDescMatch) {
       const cleaned = fmDescMatch[1].trim().replace(/^["']|["']$/g, '');
       if (cleaned && !looksLikePlaceholder(cleaned)) {
-        return cleaned.substring(0, 200);
+        return truncatePurpose(cleaned);
       }
     }
   }
@@ -244,7 +252,7 @@ function extractPurpose(content, filePath) {
   if (purposeMatch) {
     const firstLine = purposeMatch[1].trim().split('\n')[0];
     if (firstLine && !looksLikePlaceholder(firstLine)) {
-      return firstLine.substring(0, 200);
+      return truncatePurpose(firstLine);
     }
   }
 
@@ -254,7 +262,7 @@ function extractPurpose(content, filePath) {
   if (overviewMatch) {
     const firstLine = overviewMatch[1].trim().split('\n')[0];
     if (firstLine && !looksLikePlaceholder(firstLine)) {
-      return firstLine.substring(0, 200);
+      return truncatePurpose(firstLine);
     }
   }
 
@@ -269,11 +277,11 @@ function extractPurpose(content, filePath) {
   if (headerMatch) {
     const candidate = headerMatch[1].trim();
     if (!looksLikePlaceholder(candidate)) {
-      return candidate.substring(0, 200);
+      return truncatePurpose(candidate);
     }
   }
 
-  return `Entity at ${path.relative(REPO_ROOT, filePath)}`;
+  return `Entity at ${toRegistryRelativePath(filePath)}`;
 }
 
 const YAML_DEP_FIELDS = {
@@ -854,12 +862,14 @@ module.exports = {
   populate,
   scanCategory,
   extractEntityId,
+  toRegistryRelativePath,
   toScopedEntityId,
   resolveEntityId,
   findScanConfigForPath,
   resolveRelativeDependencyId,
   extractKeywords,
   extractPurpose,
+  truncatePurpose,
   looksLikePlaceholder,
   syncSelfRegistryEntry,
   detectDependencies,
