@@ -35,7 +35,14 @@ const agentSet = (process.env.AIOX_E2E_AGENT_SET || 'dev,qa,aiox-master')
 const defaultCommandTimeoutMs = parseTimeoutEnv('AIOX_E2E_COMMAND_TIMEOUT_MS', 120000);
 const npmInstallTimeoutMs = parseTimeoutEnv('AIOX_E2E_NPM_INSTALL_TIMEOUT_MS', 420000);
 const npmInstallFlags = ['--no-audit', '--fund=false'];
+const npmBin = process.platform === 'win32' ? 'npm.cmd' : 'npm';
 const npxBin = process.platform === 'win32' ? 'npx.cmd' : 'npx';
+const sourceClaudeDisabled = fs.existsSync(path.join(repoRoot, '.claude', 'ENGINE_DISABLED.md'));
+const sourceAntiGravityActive = fs.existsSync(path.join(repoRoot, '.antigravity')) &&
+  !fs.existsSync(path.join(repoRoot, '.antigravity', 'ENGINE_DISABLED.md'));
+const installIde = process.env.AIOX_E2E_INSTALL_IDE ||
+  (sourceClaudeDisabled && sourceAntiGravityActive ? 'antigravity' : 'claude-code');
+const strictAntiGravityInstall = installIde === 'antigravity' && sourceClaudeDisabled;
 
 const packDir = fs.mkdtempSync(path.join(os.tmpdir(), 'aiox-pack-'));
 const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'aiox-installed-skills-'));
@@ -64,6 +71,7 @@ function run(command, args, options = {}) {
     cwd,
     env,
     encoding: 'utf8',
+    shell: process.platform === 'win32' && /\.(?:cmd|bat)$/i.test(command),
     timeout: options.timeout || defaultCommandTimeoutMs,
     maxBuffer: 1024 * 1024 * 20,
   });
@@ -124,6 +132,19 @@ function assertAbsolutePathExists(absolutePath, type = 'any') {
   return absolutePath;
 }
 
+function assertInactiveEngine(relativePath) {
+  const absolutePath = path.join(projectRoot, relativePath);
+  if (!fs.existsSync(absolutePath)) {
+    return;
+  }
+
+  const entries = fs.readdirSync(absolutePath);
+  const activeEntries = entries.filter((entry) => entry !== 'ENGINE_DISABLED.md');
+  if (activeEntries.length > 0) {
+    fail(`Expected inactive engine directory to be absent or marker-only: ${relativePath}`);
+  }
+}
+
 function assertNoSourceRepoLeak(relativePath) {
   const absolutePath = assertPathExists(relativePath, 'file');
   const content = fs.readFileSync(absolutePath, 'utf8');
@@ -167,7 +188,7 @@ async function main() {
   fs.mkdirSync(projectRoot, { recursive: true });
 
   log('Packing local aiox-core package');
-  run('npm', ['pack', '--pack-destination', packDir], { cwd: repoRoot, timeout: 180000 });
+  run(npmBin, ['pack', '--pack-destination', packDir], { cwd: repoRoot, timeout: 180000 });
   const tarballs = fs.readdirSync(packDir).filter((entry) => entry.endsWith('.tgz'));
   if (tarballs.length !== 1) {
     fail(`Expected exactly one packed tarball, found ${tarballs.length}`, tarballs.join('\n'));
@@ -175,10 +196,10 @@ async function main() {
   const tarballPath = path.join(packDir, tarballs[0]);
 
   log('Creating brownfield test project');
-  run('npm', ['init', '-y'], { cwd: projectRoot });
+  run(npmBin, ['init', '-y'], { cwd: projectRoot });
 
   log('Installing packed aiox-core tarball');
-  run('npm', ['install', tarballPath, ...npmInstallFlags], {
+  run(npmBin, ['install', tarballPath, ...npmInstallFlags], {
     cwd: projectRoot,
     timeout: npmInstallTimeoutMs,
   });
@@ -198,7 +219,7 @@ async function main() {
 
   log('Validating packaged .aiox-core dependencies');
   assertAbsolutePathExists(path.join(packagedCoreDir, 'package.json'), 'file');
-  run('npm', ['install', '--omit=dev', '--ignore-scripts', ...npmInstallFlags], {
+  run(npmBin, ['install', '--omit=dev', '--ignore-scripts', ...npmInstallFlags], {
     cwd: packagedCoreDir,
     timeout: npmInstallTimeoutMs,
   });
@@ -206,8 +227,14 @@ async function main() {
     assertAbsolutePathExists(path.join(packagedCoreDir, 'node_modules', packageName), 'dir');
   }
 
-  log('Running installed aiox install in CI mode');
-  runInstalledCli(['install', '--ci', '--yes', '--ide', 'claude-code'], {
+  log(`Running installed aiox install in CI mode (${installIde})`);
+  const installArgs = ['install', '--ci', '--yes', '--ide', installIde];
+  if (strictAntiGravityInstall) {
+    installArgs.splice(1, 0, '--strict');
+    installArgs.push('--language', 'pt');
+  }
+
+  runInstalledCli(installArgs, {
     cwd: projectRoot,
     timeout: 240000,
     env: {
@@ -222,33 +249,58 @@ async function main() {
   log('Validating installed skill and agent artifacts');
   assertPathExists('.aiox-core', 'dir');
   assertPathExists('.aiox-core/development/agents', 'dir');
-  assertPathExists('.claude/skills/AIOX/agents', 'dir');
-  assertPathExists('.codex/agents', 'dir');
-  assertPathExists('.codex/skills', 'dir');
+
+  if (strictAntiGravityInstall) {
+    assertPathExists('.antigravity/agents', 'dir');
+    assertPathExists('.antigravity/rules/agents', 'dir');
+    assertPathExists('.agent/workflows', 'dir');
+    assertInactiveEngine('.claude');
+    assertInactiveEngine('.codex');
+    assertInactiveEngine('.gemini');
+    assertInactiveEngine('.cursor');
+  } else {
+    assertPathExists('.claude/skills/AIOX/agents', 'dir');
+    assertPathExists('.codex/agents', 'dir');
+    assertPathExists('.codex/skills', 'dir');
+  }
 
   for (const agent of agentSet) {
-    const claudeSkill = `.claude/skills/AIOX/agents/${agent}/SKILL.md`;
-    const codexAgent = `.codex/agents/${agent}.md`;
-    const codexSkillId = getSkillId(agent);
-    const codexSkill = `.codex/skills/${codexSkillId}/SKILL.md`;
     const sourceAgent = `.aiox-core/development/agents/${agent}.md`;
 
     assertPathExists(sourceAgent, 'file');
 
-    const claudeSkillContent = assertNoSourceRepoLeak(claudeSkill);
-    assertContains(claudeSkillContent, 'activation_type: pipeline', claudeSkill);
-    assertContains(
-      claudeSkillContent,
-      `Source: .aiox-core/development/agents/${agent}.md`,
-      claudeSkill,
-    );
+    if (strictAntiGravityInstall) {
+      const antigravityAgent = `.antigravity/agents/${agent}.md`;
+      const antigravityRules = `.antigravity/rules/agents/${agent}.md`;
+      const antigravityWorkflow = `.agent/workflows/${agent}.md`;
+      const antigravityAgentContent = assertNoSourceRepoLeak(antigravityAgent);
+      const antigravityRulesContent = assertNoSourceRepoLeak(antigravityRules);
+      const antigravityWorkflowContent = assertNoSourceRepoLeak(antigravityWorkflow);
 
-    const codexAgentContent = assertNoSourceRepoLeak(codexAgent);
-    assertContains(codexAgentContent, `id: ${agent}`, codexAgent);
+      assertContains(antigravityAgentContent, `id: ${agent}`, antigravityAgent);
+      assertContains(antigravityRulesContent, 'AIOX Sentinel Guardrails', antigravityRules);
+      assertContains(antigravityWorkflowContent, `.antigravity/agents/${agent}.md`, antigravityWorkflow);
+    } else {
+      const claudeSkill = `.claude/skills/AIOX/agents/${agent}/SKILL.md`;
+      const codexAgent = `.codex/agents/${agent}.md`;
+      const codexSkillId = getSkillId(agent);
+      const codexSkill = `.codex/skills/${codexSkillId}/SKILL.md`;
 
-    const codexSkillContent = assertNoSourceRepoLeak(codexSkill);
-    assertContains(codexSkillContent, `name: ${codexSkillId}`, codexSkill);
-    assertContains(codexSkillContent, `.aiox-core/development/agents/${agent}.md`, codexSkill);
+      const claudeSkillContent = assertNoSourceRepoLeak(claudeSkill);
+      assertContains(claudeSkillContent, 'activation_type: pipeline', claudeSkill);
+      assertContains(
+        claudeSkillContent,
+        `Source: .aiox-core/development/agents/${agent}.md`,
+        claudeSkill,
+      );
+
+      const codexAgentContent = assertNoSourceRepoLeak(codexAgent);
+      assertContains(codexAgentContent, `id: ${agent}`, codexAgent);
+
+      const codexSkillContent = assertNoSourceRepoLeak(codexSkill);
+      assertContains(codexSkillContent, `name: ${codexSkillId}`, codexSkill);
+      assertContains(codexSkillContent, `.aiox-core/development/agents/${agent}.md`, codexSkill);
+    }
   }
 
   log(`Activating installed agents: ${agentSet.join(', ')}`);

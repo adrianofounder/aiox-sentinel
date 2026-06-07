@@ -10,6 +10,7 @@ const { validateCodexIntegration } = require('./validate-codex-integration');
 const { validateGeminiIntegration } = require('./validate-gemini-integration');
 const { validateCodexSkills } = require('./codex-skills-sync/validate');
 const { validatePaths } = require('./validate-paths');
+const { isIdeDisabledByMarker } = require('./ide-sync/index');
 
 function parseArgs(argv = process.argv.slice(2)) {
   const args = new Set(
@@ -76,6 +77,7 @@ function escapeRegex(value) {
 
 function validateCompatibilityContract(contract, resultById, options = {}) {
   const violations = [];
+  const disabledIdes = options.disabledIdes || new Set();
 
   if (!contract || typeof contract !== 'object') {
     return ['Compatibility contract is missing or invalid'];
@@ -95,6 +97,10 @@ function validateCompatibilityContract(contract, resultById, options = {}) {
 
   for (const ide of matrix) {
     const ideName = ide.ide || 'unknown';
+    if (disabledIdes.has(ideName)) {
+      continue;
+    }
+
     const displayName = ide.display_name || ideName;
     const requiredChecks = Array.isArray(ide.required_checks) ? ide.required_checks : [];
     const expectedStatus = ide.expected_status;
@@ -233,6 +239,21 @@ function runParityValidation(options = {}, deps = {}) {
   const previousContract = resolvedDiffPath ? loadContract(resolvedDiffPath) : null;
   const docsPath = path.join(projectRoot, 'docs', 'ide-integration.md');
   const docsPathRelative = path.relative(projectRoot, docsPath);
+  const checkIdeMap = {
+    'claude-sync': 'claude-code',
+    'claude-integration': 'claude-code',
+    'codex-sync': 'codex',
+    'codex-integration': 'codex',
+    'codex-skills': 'codex',
+    'gemini-sync': 'gemini',
+    'gemini-integration': 'gemini',
+    'cursor-sync': 'cursor',
+    'github-copilot-sync': 'github-copilot',
+    'antigravity-sync': 'antigravity',
+  };
+  const disabledIdes = new Set(
+    Object.values(checkIdeMap).filter((ide) => isIdeDisabledByMarker(projectRoot, ide)),
+  );
   const checks = [
     { id: 'claude-sync', exec: () => runSync('claude-code', projectRoot) },
     { id: 'claude-integration', exec: () => runClaudeIntegration({ projectRoot }) },
@@ -248,6 +269,17 @@ function runParityValidation(options = {}, deps = {}) {
   ];
 
   const results = checks.map((check) => {
+    const ide = checkIdeMap[check.id];
+    if (ide && disabledIdes.has(ide)) {
+      return {
+        id: check.id,
+        ok: true,
+        errors: [],
+        warnings: [`Skipped because ${ide} is disabled by ENGINE_DISABLED.md`],
+        metrics: { skipped: true, disabledIde: ide },
+      };
+    }
+
     const normalized = normalizeResult(check.exec());
     return { id: check.id, ...normalized };
   });
@@ -255,6 +287,7 @@ function runParityValidation(options = {}, deps = {}) {
   const contractViolations = validateCompatibilityContract(contract, resultById, {
     docsPath,
     docsPathRelative,
+    disabledIdes,
   });
   const contractSummary = contract
     ? {

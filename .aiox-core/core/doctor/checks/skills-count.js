@@ -12,6 +12,7 @@
 
 const path = require('path');
 const fs = require('fs');
+const { isClaudeDisabled, disabledResult } = require('./engine-disabled');
 
 const name = 'skills-count';
 
@@ -67,6 +68,10 @@ function countSourceAgents(sourceAgentsDir) {
 }
 
 async function run(context) {
+  if (isClaudeDisabled(context)) {
+    return disabledResult(name);
+  }
+
   const skillsDir = path.join(context.projectRoot, '.claude', 'skills');
   const agentSkillsDir = path.join(skillsDir, 'AIOX', 'agents');
   const sourceAgentsDir = path.join(context.projectRoot, '.aiox-core', 'development', 'agents');

@@ -9,6 +9,7 @@
 
 const path = require('path');
 const fs = require('fs');
+const { isClaudeDisabled, disabledResult } = require('./engine-disabled');
 
 const name = 'claude-md';
 
@@ -19,6 +20,10 @@ const REQUIRED_SECTIONS = [
 ];
 
 async function run(context) {
+  if (isClaudeDisabled(context)) {
+    return disabledResult(name);
+  }
+
   const claudeMdPath = path.join(context.projectRoot, '.claude', 'CLAUDE.md');
 
   if (!fs.existsSync(claudeMdPath)) {

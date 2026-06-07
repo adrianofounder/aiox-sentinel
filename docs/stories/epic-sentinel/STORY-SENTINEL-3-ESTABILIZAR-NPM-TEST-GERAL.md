@@ -32,7 +32,12 @@ Durante a validacao da instalacao AntiGravity estrita, os testes focados passara
 - [x] `npx jest tests/core/execution/parallel-executor.test.js --runInBand --detectOpenHandles --verbose` - passou.
 - [x] `npx jest tests/core/wave-executor.test.js tests/core/execution/wave-executor.test.js tests/core/parallel-monitor.test.js tests/core/config-cache-unref.test.js --runInBand --detectOpenHandles --verbose` - passou.
 - [x] `npx jest tests/synapse/generate-constitution.test.js --runInBand --silent --openHandlesTimeout=1000` - passou.
-- [x] `npm test -- --runInBand --silent --openHandlesTimeout=1000` - passou: 354 suites passed, 16 skipped; 8724 tests passed, 231 skipped.
+- [x] `npm test -- --runInBand --silent --openHandlesTimeout=1000` - passou: 354 suites passed, 16 skipped; 8727 tests passed, 231 skipped.
+- [x] `npm run validate:manifest` - passou.
+- [x] `npm run validate:registry-determinism` - passou.
+- [x] `npm run sync:ide:check` - passou em modo Sentinel, pulando motores com `ENGINE_DISABLED.md`.
+- [x] `npm run validate:parity` - passou em modo Sentinel, pulando checks de motores desativados.
+- [x] `npm run test:e2e:installed-skills` - passou usando instalacao AntiGravity estrita quando o repo fonte esta isolado.
 
 ## Diagnostico inicial
 
@@ -79,6 +84,25 @@ Pendencias nao bloqueantes observadas no output:
 
 Conclusao final: o teste geral serializado fecha com exit code 0 no ambiente local documentado. As mensagens residuais acima sao ruidos de ambiente/fixtures e devem ser tratadas em stories dedicadas se o objetivo for limpar stdout/stderr.
 
+## Follow-up CI
+
+Apos publicar o PR, a CI remota passou lint, typecheck e Jest, mas falhou em validacoes de artefatos gerados e compatibilidade:
+
+- `Install Manifest Validation` - registry mudou sem manifest atualizado.
+- `Entity Registry Determinism` - novos modulos Sentinel nao estavam refletidos no registry.
+- `IDE Command Sync Validation` - motores fisicamente desativados ainda eram cobrados pelo sync strict.
+- `Compatibility Parity Gate` - contrato de paridade ainda exigia checks de motores com `ENGINE_DISABLED.md`.
+- `Brownfield Install Test` - E2E instalava Claude em branch AntiGravity isolado e o doctor cobrava artefatos Claude ausentes.
+
+Correcoes aplicadas no follow-up:
+
+- `ide-sync` agora pula alvos com `ENGINE_DISABLED.md`.
+- `validate:parity` agora trata checks de motores desativados como skip/pass e ignora esses motores na validacao do contrato.
+- `aiox doctor` agora entende Claude ausente/desativado em projeto AntiGravity estrito.
+- O E2E brownfield usa `install --strict --ide antigravity --language pt` quando o repo fonte esta isolado para AntiGravity.
+- O registry IDS normaliza paths textuais e evita whitespace final apos truncamento de `purpose`.
+- `entity-registry.yaml` e `install-manifest.yaml` foram regenerados.
+
 ## File List
 
 - `docs/stories/epic-sentinel/STORY-SENTINEL-3-ESTABILIZAR-NPM-TEST-GERAL.md`
@@ -102,3 +126,19 @@ Conclusao final: o teste geral serializado fecha com exit code 0 no ambiente loc
 - `tests/synapse/generate-constitution.test.js`
 - `tests/synapse/hook-entry.test.js`
 - `tests/unit/quality-gates/layer2-pr-automation.test.js`
+- `.aiox-core/core/doctor/checks/claude-md.js`
+- `.aiox-core/core/doctor/checks/commands-count.js`
+- `.aiox-core/core/doctor/checks/engine-disabled.js`
+- `.aiox-core/core/doctor/checks/hooks-claude-count.js`
+- `.aiox-core/core/doctor/checks/ide-sync.js`
+- `.aiox-core/core/doctor/checks/rules-files.js`
+- `.aiox-core/core/doctor/checks/settings-json.js`
+- `.aiox-core/core/doctor/checks/skills-count.js`
+- `.aiox-core/data/entity-registry.yaml`
+- `.aiox-core/development/scripts/populate-entity-registry.js`
+- `.aiox-core/infrastructure/scripts/ide-sync/index.js`
+- `.aiox-core/infrastructure/scripts/validate-parity.js`
+- `.aiox-core/install-manifest.yaml`
+- `scripts/e2e/installed-skills-smoke.js`
+- `tests/core/doctor/doctor-checks.test.js`
+- `tests/core/ids/populate-entity-registry.test.js`

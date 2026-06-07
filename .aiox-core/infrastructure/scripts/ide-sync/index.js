@@ -45,6 +45,32 @@ const colors = {
   cyan: '\x1b[36m',
 };
 
+const DISABLED_MARKER_BY_IDE = {
+  'claude-code': path.join('.claude', 'ENGINE_DISABLED.md'),
+  codex: path.join('.codex', 'ENGINE_DISABLED.md'),
+  gemini: path.join('.gemini', 'ENGINE_DISABLED.md'),
+  cursor: path.join('.cursor', 'ENGINE_DISABLED.md'),
+  antigravity: path.join('.antigravity', 'ENGINE_DISABLED.md'),
+};
+
+function isIdeDisabledByMarker(projectRoot, ideName) {
+  const marker = DISABLED_MARKER_BY_IDE[ideName];
+  return Boolean(marker && fs.existsSync(path.join(projectRoot, marker)));
+}
+
+function filterEnabledTargets(targets, projectRoot, options = {}) {
+  return Object.entries(targets).filter(([name, ideConfig]) => {
+    if (!ideConfig.enabled) return false;
+
+    const disabled = isIdeDisabledByMarker(projectRoot, name);
+    if (disabled && !options.quiet) {
+      console.log(`${colors.dim}skip ${name}: ENGINE_DISABLED.md${colors.reset}`);
+    }
+
+    return !disabled;
+  });
+}
+
 /**
  * Load core-config.yaml and extract ideSync section
  * @param {string} projectRoot - Project root directory
@@ -303,10 +329,10 @@ async function commandSync(options) {
   }
 
   // Filter IDEs if --ide flag specified
-  let targetIdes = Object.entries(config.targets);
+  let targetIdes = filterEnabledTargets(config.targets, projectRoot, options);
   if (options.ide) {
     targetIdes = targetIdes.filter(([name]) => name === options.ide);
-    if (targetIdes.length === 0) {
+    if (targetIdes.length === 0 && !isIdeDisabledByMarker(projectRoot, options.ide)) {
       console.error(`${colors.red}Error: IDE '${options.ide}' not found in config${colors.reset}`);
       process.exit(1);
     }
@@ -421,12 +447,12 @@ async function commandValidate(options) {
 
   // Build expected files for each IDE
   const ideConfigs = {};
-  let targetIdes = Object.entries(config.targets).filter(([, ideConfig]) => ideConfig.enabled);
+  let targetIdes = filterEnabledTargets(config.targets, projectRoot, options);
 
   // Filter IDEs if --ide flag specified
   if (options.ide) {
     targetIdes = targetIdes.filter(([name]) => name === options.ide);
-    if (targetIdes.length === 0) {
+    if (targetIdes.length === 0 && !isIdeDisabledByMarker(projectRoot, options.ide)) {
       console.error(`${colors.red}Error: IDE '${options.ide}' not found in config${colors.reset}`);
       process.exit(1);
     }
@@ -633,6 +659,8 @@ module.exports = {
   loadConfig,
   getTransformer,
   transformPrimaryContent,
+  isIdeDisabledByMarker,
+  filterEnabledTargets,
   syncIde,
   commandSync,
   commandValidate,

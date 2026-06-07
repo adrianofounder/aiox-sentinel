@@ -10,6 +10,7 @@
 
 const path = require('path');
 const fs = require('fs');
+const { isClaudeDisabled, disabledResult } = require('./engine-disabled');
 
 const name = 'settings-json';
 
@@ -62,6 +63,10 @@ function checkBoundaryAlignment(context, denyRules) {
 }
 
 async function run(context) {
+  if (isClaudeDisabled(context)) {
+    return disabledResult(name);
+  }
+
   const settingsPath = path.join(context.projectRoot, '.claude', 'settings.json');
 
   if (!fs.existsSync(settingsPath)) {

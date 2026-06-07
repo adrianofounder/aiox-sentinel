@@ -10,6 +10,7 @@
 
 const path = require('path');
 const fs = require('fs');
+const { isClaudeDisabled, disabledResult } = require('./engine-disabled');
 
 const name = 'commands-count';
 
@@ -39,6 +40,10 @@ function countMdFiles(dir) {
 }
 
 async function run(context) {
+  if (isClaudeDisabled(context)) {
+    return disabledResult(name);
+  }
+
   const commandsDir = path.join(context.projectRoot, '.claude', 'commands');
 
   if (!fs.existsSync(commandsDir)) {

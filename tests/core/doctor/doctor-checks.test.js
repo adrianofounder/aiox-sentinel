@@ -159,6 +159,18 @@ describe('Doctor Check: rules-files', () => {
     expect(result.message).toContain('not found');
   });
 
+  it('deve retornar PASS quando Claude Code esta desativado', async () => {
+    const claudeDir = path.join(tmpDir, '.claude');
+    fs.mkdirSync(claudeDir, { recursive: true });
+    fs.writeFileSync(path.join(claudeDir, 'ENGINE_DISABLED.md'), '# disabled\n');
+
+    const ctx = makeContext(tmpDir);
+    const result = await run(ctx);
+
+    expect(result.status).toBe('PASS');
+    expect(result.message).toContain('disabled');
+  });
+
   it('deve retornar PASS quando todos os arquivos de regras existem', async () => {
     const rulesDir = path.join(tmpDir, '.claude', 'rules');
     fs.mkdirSync(rulesDir, { recursive: true });
@@ -586,6 +598,18 @@ describe('Doctor Check: hooks-claude-count', () => {
 
     expect(result.status).toBe('FAIL');
     expect(result.message).toContain('not found');
+  });
+
+  it('deve retornar PASS quando projeto AntiGravity estrito nao tem .claude', async () => {
+    const antigravityDir = path.join(tmpDir, '.antigravity');
+    fs.mkdirSync(antigravityDir, { recursive: true });
+    fs.writeFileSync(path.join(antigravityDir, 'antigravity.json'), '{}\n');
+
+    const ctx = makeContext(tmpDir);
+    const result = await run(ctx);
+
+    expect(result.status).toBe('PASS');
+    expect(result.message).toContain('disabled');
   });
 
   it('deve retornar FAIL quando nenhum .cjs encontrado', async () => {

@@ -6,7 +6,9 @@ const {
   extractEntityId,
   extractKeywords,
   extractPurpose,
+  truncatePurpose,
   looksLikePlaceholder,
+  toRegistryRelativePath,
   syncSelfRegistryEntry,
   detectDependencies,
   extractYamlDependencies,
@@ -31,6 +33,7 @@ const {
 } = require('../../../.aiox-core/development/scripts/populate-entity-registry');
 
 const FIXTURES = path.resolve(__dirname, 'fixtures');
+const PROJECT_ROOT = path.resolve(__dirname, '..', '..', '..');
 
 describe('populate-entity-registry (AC: 3, 4, 12)', () => {
   describe('extractEntityId()', () => {
@@ -250,6 +253,22 @@ describe('populate-entity-registry (AC: 3, 4, 12)', () => {
       const content = '---\ndescription: "{One-line description}"\n---\n\n## Purpose\n\n{{var}}\n\n# *${taskName}';
       const purpose = extractPurpose(content, '/some/path/orphan.md');
       expect(purpose).toContain('orphan.md');
+    });
+  });
+
+  describe('truncatePurpose()', () => {
+    it('does not leave trailing whitespace after truncation', () => {
+      const value = `${'x'.repeat(199)} y`;
+
+      expect(truncatePurpose(value)).toBe('x'.repeat(199));
+    });
+  });
+
+  describe('toRegistryRelativePath()', () => {
+    it('normalizes path separators for registry text fields', () => {
+      const filePath = path.join(PROJECT_ROOT, '.aiox-core', 'core', 'sentinel', 'hook.js');
+
+      expect(toRegistryRelativePath(filePath, PROJECT_ROOT)).toBe('.aiox-core/core/sentinel/hook.js');
     });
   });
 

@@ -10,6 +10,7 @@
 
 const path = require('path');
 const fs = require('fs');
+const { isClaudeDisabled, disabledResult } = require('./engine-disabled');
 
 const name = 'ide-sync';
 
@@ -58,6 +59,10 @@ function formatList(items) {
 }
 
 async function run(context) {
+  if (isClaudeDisabled(context)) {
+    return disabledResult(name);
+  }
+
   const agentsSourceDir = path.join(context.projectRoot, '.aiox-core', 'development', 'agents');
   const agentsCommandDir = path.join(context.projectRoot, '.claude', 'commands', 'AIOX', 'agents');
   const agentsSkillDir = path.join(context.projectRoot, '.claude', 'skills', 'AIOX', 'agents');
