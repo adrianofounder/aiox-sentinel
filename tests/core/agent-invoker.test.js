@@ -182,11 +182,7 @@ describe('Agent Invoker (Story 0.7)', () => {
       const inv = new AgentInvoker({
         projectRoot: tempDir,
         defaultTimeout: 100, // Very short timeout
-        executor: async () => {
-          // Simulate long execution
-          await new Promise((resolve) => setTimeout(resolve, 500));
-          return { done: true };
-        },
+        executor: async () => new Promise(() => {}),
       });
 
       const result = await inv.invokeAgent('dev', 'sample-task');

@@ -9,6 +9,13 @@
 const EventEmitter = require('events');
 const _path = require('path');
 
+function unrefTimer(timer) {
+  if (timer && typeof timer.unref === 'function') {
+    timer.unref();
+  }
+  return timer;
+}
+
 // Import dependencies with fallbacks
 let WaveAnalyzer;
 try {
@@ -206,6 +213,7 @@ class WaveExecutor extends EventEmitter {
    */
   async executeTaskWithTimeout(task, context) {
     const startTime = Date.now();
+    let timeoutId;
 
     // Track active execution
     this.activeExecutions.set(task.id, {
@@ -219,9 +227,9 @@ class WaveExecutor extends EventEmitter {
     try {
       // Create timeout promise
       const timeoutPromise = new Promise((_, reject) => {
-        setTimeout(() => {
+        timeoutId = unrefTimer(setTimeout(() => {
           reject(new Error(`Task ${task.id} timed out after ${this.taskTimeout}ms`));
-        }, this.taskTimeout);
+        }, this.taskTimeout));
       });
 
       // Execute task with rate limiting if available
@@ -272,10 +280,14 @@ class WaveExecutor extends EventEmitter {
         duration: Date.now() - startTime,
       };
     } finally {
+      if (timeoutId) {
+        clearTimeout(timeoutId);
+      }
+
       // Remove from active after a delay (for monitoring)
-      setTimeout(() => {
+      unrefTimer(setTimeout(() => {
         this.activeExecutions.delete(task.id);
-      }, 5000);
+      }, 5000));
     }
   }
 

@@ -227,11 +227,13 @@ class ConfigCache {
 
 // Global cache instance (singleton)
 const globalConfigCache = new ConfigCache();
+const isJestRuntime =
+  typeof process !== 'undefined' && Boolean(process.env.JEST_WORKER_ID);
 
 // Auto cleanup expired entries every minute
 const cacheCleanupTimer = setInterval(() => {
   const cleared = globalConfigCache.clearExpired();
-  if (cleared > 0) {
+  if (cleared > 0 && !isJestRuntime) {
     console.log(`🗑️ Config cache: Cleared ${cleared} expired entries`);
   }
 }, 60 * 1000);

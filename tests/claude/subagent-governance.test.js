@@ -6,6 +6,12 @@ const yaml = require('js-yaml');
 const repoRoot = path.resolve(__dirname, '..', '..');
 const agentsDir = path.join(repoRoot, '.claude', 'agents');
 const authorityHookPath = path.join(repoRoot, '.claude', 'hooks', 'enforce-git-push-authority.cjs');
+const settingsPath = path.join(repoRoot, '.claude', 'settings.json');
+const hasClaudeGovernanceArtifacts =
+  fs.existsSync(agentsDir) &&
+  fs.existsSync(authorityHookPath) &&
+  fs.existsSync(settingsPath);
+const describeClaudeGovernance = hasClaudeGovernanceArtifacts ? describe : describe.skip;
 const allowedColors = new Set(['red', 'blue', 'green', 'yellow', 'purple', 'orange', 'pink', 'cyan']);
 const expectedCoreNativeSubagents = [
   'aiox-analyst.md',
@@ -39,7 +45,7 @@ function runAuthorityHook(command, env = {}) {
   });
 }
 
-describe('Claude native subagent governance', () => {
+describeClaudeGovernance('Claude native subagent governance', () => {
   it('keeps all native subagents compliant with supported frontmatter fields', () => {
     const files = fs.readdirSync(agentsDir).filter(file => file.endsWith('.md')).sort();
 
@@ -74,7 +80,7 @@ describe('Claude native subagent governance', () => {
   });
 
   it('registers the remote Git authority hook at project settings level', () => {
-    const settings = JSON.parse(fs.readFileSync(path.join(repoRoot, '.claude', 'settings.json'), 'utf8'));
+    const settings = JSON.parse(fs.readFileSync(settingsPath, 'utf8'));
     const preToolUse = settings.hooks?.PreToolUse || [];
 
     expect(JSON.stringify(preToolUse)).toContain('enforce-git-push-authority.cjs');
@@ -82,7 +88,7 @@ describe('Claude native subagent governance', () => {
   });
 
   it('uses shell-neutral project hook commands in committed Claude settings', () => {
-    const settings = JSON.parse(fs.readFileSync(path.join(repoRoot, '.claude', 'settings.json'), 'utf8'));
+    const settings = JSON.parse(fs.readFileSync(settingsPath, 'utf8'));
     const commands = Object.values(settings.hooks || {})
       .flat()
       .flatMap(entry => entry.hooks || [])

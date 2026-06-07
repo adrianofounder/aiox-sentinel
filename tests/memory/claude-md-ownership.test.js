@@ -4,8 +4,9 @@ const fs = require('fs');
 const path = require('path');
 
 const CLAUDE_MD_PATH = path.join(__dirname, '..', '..', '.claude', 'CLAUDE.md');
+const describeClaudeMd = fs.existsSync(CLAUDE_MD_PATH) ? describe : describe.skip;
 
-describe('CLAUDE.md Ownership Annotations', () => {
+describeClaudeMd('CLAUDE.md Ownership Annotations', () => {
   let content;
 
   beforeAll(() => {

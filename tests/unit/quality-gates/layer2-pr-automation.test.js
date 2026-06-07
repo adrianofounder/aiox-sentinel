@@ -14,6 +14,7 @@ describe('Layer2PRAutomation', () => {
       enabled: true,
       coderabbit: {
         enabled: true,
+        installation_mode: 'native',
         blockOn: ['CRITICAL'],
         warnOn: ['HIGH'],
       },

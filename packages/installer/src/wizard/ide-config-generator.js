@@ -905,10 +905,13 @@ function showSuccessSummary(result) {
  * Only copies JS hooks that work without external dependencies (Python, etc.)
  * @param {string} projectRoot - Project root directory
  * @param {Object} [wizardState={}] - Current wizard state
+ * @param {string} [_sourceRoot] - Override source root for testing
  * @returns {Promise<string[]>} List of copied files
  */
-async function copyClaudeHooksFolder(projectRoot, wizardState = {}) {
-  const sourceDir = resolveAioxCorePath('.claude', 'hooks');
+async function copyClaudeHooksFolder(projectRoot, wizardState = {}, _sourceRoot) {
+  const sourceDir = _sourceRoot
+    ? path.join(_sourceRoot, '.claude', 'hooks')
+    : resolveAioxCorePath('.claude', 'hooks');
   const targetDir = path.join(projectRoot, '.claude', 'hooks');
   const copiedFiles = [];
 
