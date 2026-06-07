@@ -434,7 +434,7 @@ async function copyClaudeRulesFolder(projectRoot) {
  * @param {string} agentName - Name of the agent (e.g., 'dev', 'architect')
  * @returns {string} Workflow file content
  */
-function generateAntiGravityWorkflow(agentName) {
+function _generateAntiGravityWorkflowLegacy(agentName) {
   // Capitalize first letter for display
   const displayName = agentName.charAt(0).toUpperCase() + agentName.slice(1);
 
@@ -489,7 +489,9 @@ description: Ativa o agente ${displayName}
 `;
 }
 
-generateAntiGravityWorkflow = generateAntiGravityWorkflowPtBr;
+function generateAntiGravityWorkflow(agentName) {
+  return generateAntiGravityWorkflowPtBr(agentName);
+}
 
 function createAntiGravityAgentPreamble(agentName) {
   return [

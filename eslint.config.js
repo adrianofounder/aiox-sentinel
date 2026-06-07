@@ -33,6 +33,8 @@ module.exports = [
       '**/*.min.js',
       '**/aiox-core/*.js',
       '**/templates/squad/**',
+      // Local Understand-Anything graph output
+      '.understand-anything/**',
       // Squad template - ES modules with placeholder imports
       '.aiox-core/development/templates/squad-template/**',
       // ESM bundle files - auto-generated

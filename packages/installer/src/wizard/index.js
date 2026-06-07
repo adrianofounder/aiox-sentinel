@@ -40,6 +40,7 @@ const {
   installAioxCore,
   hasPackageJson,
 } = require('../installer/aiox-core-installer');
+const { isValidIDE } = require('../config/ide-configs');
 const {
   validateInstallation,
   displayValidationReport,
@@ -137,6 +138,37 @@ const LANGUAGE_MAP = {
   pt: 'portuguese',
   es: 'spanish',
 };
+
+function uniqueTruthy(values) {
+  return [...new Set((values || []).filter(Boolean))];
+}
+
+function isIdeSelected(answers, ide) {
+  return uniqueTruthy(answers.selectedIDEs).includes(ide);
+}
+
+function resolveStrictInstallIde(answers, options = {}) {
+  if (!options.strict) {
+    return null;
+  }
+
+  const selectedIDEs = uniqueTruthy(answers.selectedIDEs || (options.ide ? [options.ide] : []));
+
+  if (selectedIDEs.length !== 1) {
+    throw new Error('Strict install requires exactly one IDE via --ide <ide>.');
+  }
+
+  const [strictIde] = selectedIDEs;
+  if (!isValidIDE(strictIde)) {
+    throw new Error(`Strict install received an unsupported IDE: ${strictIde}`);
+  }
+
+  answers.selectedIDEs = selectedIDEs;
+  answers.strict = true;
+  answers.strictIde = strictIde;
+
+  return strictIde;
+}
 
 /**
  * Write language preference to Claude Code's native settings.json (Story ACT-12)
@@ -349,6 +381,9 @@ async function runWizard(options = {}) {
       }
     }
 
+    const strictIde = resolveStrictInstallIde(answers, options);
+    const strictMode = Boolean(strictIde);
+
     if (options.dryRun) {
       const preview = {
         dryRun: true,
@@ -548,40 +583,54 @@ async function runWizard(options = {}) {
     }
 
     // Story INS-4.3: Wire settings.json boundary generator after .aiox-core/ copy
-    console.log('\n🔒 Generating boundary rules...');
-    try {
-      const settingsGenerator = requireAioxCoreModule(
-        '.aiox-core',
-        'infrastructure',
-        'scripts',
-        'generate-settings-json',
-      );
-      settingsGenerator.generate(process.cwd());
-      const settingsContent = await fse.readFile(path.join(process.cwd(), '.claude', 'settings.json'), 'utf8').catch(() => '{}');
-      const settingsParsed = JSON.parse(settingsContent);
-      const denyCount = (settingsParsed.permissions && settingsParsed.permissions.deny) ? settingsParsed.permissions.deny.length : 0;
-      console.log(`✅ settings.json: generated (${denyCount} deny rules)`);
-      answers.settingsGenerated = true;
-      answers.settingsDenyCount = denyCount;
-    } catch (error) {
-      console.warn(`⚠️  settings.json generation failed: ${error.message} — run 'aiox doctor --fix' post-install`);
+    if (!strictMode || isIdeSelected(answers, 'claude-code')) {
+      console.log('\n🔒 Generating boundary rules...');
+      try {
+        const settingsGenerator = requireAioxCoreModule(
+          '.aiox-core',
+          'infrastructure',
+          'scripts',
+          'generate-settings-json',
+        );
+        settingsGenerator.generate(process.cwd());
+        const settingsContent = await fse.readFile(path.join(process.cwd(), '.claude', 'settings.json'), 'utf8').catch(() => '{}');
+        const settingsParsed = JSON.parse(settingsContent);
+        const denyCount = (settingsParsed.permissions && settingsParsed.permissions.deny) ? settingsParsed.permissions.deny.length : 0;
+        console.log(`✅ settings.json: generated (${denyCount} deny rules)`);
+        answers.settingsGenerated = true;
+        answers.settingsDenyCount = denyCount;
+      } catch (error) {
+        console.warn(`⚠️  settings.json generation failed: ${error.message} — run 'aiox doctor --fix' post-install`);
+        answers.settingsGenerated = false;
+      }
+
+    } else {
       answers.settingsGenerated = false;
+      answers.settingsSkipped = 'strict-non-claude';
+      console.log('\nBoundary rules: skipped (strict install without Claude Code)');
     }
 
     // Story INS-4.3: Copy skills (Gap #11)
-    console.log('\n📚 Copying skills...');
-    try {
-      const skillsResult = await copySkillFiles(process.cwd());
-      if (skillsResult.skipped) {
-        console.log('   ℹ️  Skills: source not found (skipped)');
-      } else {
-        console.log(`✅ Skills: ${skillsResult.count} copied`);
+    if (!strictMode || isIdeSelected(answers, 'claude-code')) {
+      console.log('\n📚 Copying skills...');
+      try {
+        const skillsResult = await copySkillFiles(process.cwd());
+        if (skillsResult.skipped) {
+          console.log('   ℹ️  Skills: source not found (skipped)');
+        } else {
+          console.log(`✅ Skills: ${skillsResult.count} copied`);
+        }
+        answers.skillsCopied = skillsResult.count;
+        answers.skillsSkipped = skillsResult.skipped;
+      } catch (error) {
+        console.warn(`⚠️  Skills copy failed: ${error.message}`);
+        answers.skillsCopied = 0;
       }
-      answers.skillsCopied = skillsResult.count;
-      answers.skillsSkipped = skillsResult.skipped;
-    } catch (error) {
-      console.warn(`⚠️  Skills copy failed: ${error.message}`);
+
+    } else {
       answers.skillsCopied = 0;
+      answers.skillsSkipped = true;
+      console.log('\nSkills: skipped (strict install without Claude Code)');
     }
 
     // Local-first Codex flow: generate project-local /skills activators automatically
@@ -603,29 +652,37 @@ async function runWizard(options = {}) {
     }
 
     // Story INS-4.3: Copy extra commands (Gap #12)
-    console.log('\n📋 Copying extra commands...');
-    try {
-      const commandsResult = await copyExtraCommandFiles(process.cwd());
-      if (commandsResult.skipped) {
-        console.log('   ℹ️  Extra commands: source not found (skipped)');
-      } else {
-        console.log(`✅ Commands: ${commandsResult.count} extras copied`);
+    if (!strictMode || isIdeSelected(answers, 'claude-code')) {
+      console.log('\n📋 Copying extra commands...');
+      try {
+        const commandsResult = await copyExtraCommandFiles(process.cwd());
+        if (commandsResult.skipped) {
+          console.log('   ℹ️  Extra commands: source not found (skipped)');
+        } else {
+          console.log(`✅ Commands: ${commandsResult.count} extras copied`);
+        }
+        answers.extraCommandsCopied = commandsResult.count;
+        answers.extraCommandsSkipped = commandsResult.skipped;
+      } catch (error) {
+        console.warn(`⚠️  Extra commands copy failed: ${error.message}`);
+        answers.extraCommandsCopied = 0;
       }
-      answers.extraCommandsCopied = commandsResult.count;
-      answers.extraCommandsSkipped = commandsResult.skipped;
-    } catch (error) {
-      console.warn(`⚠️  Extra commands copy failed: ${error.message}`);
+    } else {
       answers.extraCommandsCopied = 0;
+      answers.extraCommandsSkipped = true;
+      console.log('\nExtra commands: skipped (strict install without Claude Code)');
     }
 
     // Story INS-4.5: IDE Sync — transform agents/skills/commands for each configured IDE
     console.log('\n🔄 Running IDE sync...');
+
     const targetProjectRoot = process.cwd();
     const savedCwd = process.cwd();
     try {
       const { commandSync, commandValidate } = loadIdeSync();
       process.chdir(targetProjectRoot);
-      await commandSync({ quiet: true });
+      const syncOptions = strictIde ? { quiet: true, ide: strictIde } : { quiet: true };
+      await commandSync(syncOptions);
       answers.ideSyncStatus = 'synced';
       console.log('✅ IDE sync: synced');
 
@@ -633,7 +690,7 @@ async function runWizard(options = {}) {
       const _origLog = console.log;
       console.log = () => {};
       try {
-        await commandValidate({ quiet: true });
+        await commandValidate(syncOptions);
         answers.ideSyncValidation = 'pass';
       } catch (_validateError) {
         answers.ideSyncValidation = 'drift';
@@ -652,21 +709,27 @@ async function runWizard(options = {}) {
     }
 
     // ACORE-SKILLS.7: Generate Codex local skills in installed projects.
-    console.log('\n🧩 Running Codex skills sync...');
-    try {
-      const { syncSkills: syncCodexSkills } = loadCodexSkillsSync();
-      const codexSkillsResult = syncCodexSkills({
-        sourceDir: path.join(targetProjectRoot, '.aiox-core', 'development', 'agents'),
-        localSkillsDir: path.join(targetProjectRoot, '.codex', 'skills'),
-        dryRun: false,
-      });
-      answers.codexSkillsStatus = 'synced';
-      answers.codexSkillsGenerated = codexSkillsResult.generated;
-      console.log(`✅ Codex skills: ${codexSkillsResult.generated} generated`);
-    } catch (codexSkillsError) {
-      console.warn(`⚠️  Codex skills sync failed: ${codexSkillsError.message} — run 'npm run sync:skills:codex' post-install`);
-      answers.codexSkillsStatus = 'failed';
+    if (!strictMode || isIdeSelected(answers, 'codex')) {
+      console.log('\n🧩 Running Codex skills sync...');
+      try {
+        const { syncSkills: syncCodexSkills } = loadCodexSkillsSync();
+        const codexSkillsResult = syncCodexSkills({
+          sourceDir: path.join(targetProjectRoot, '.aiox-core', 'development', 'agents'),
+          localSkillsDir: path.join(targetProjectRoot, '.codex', 'skills'),
+          dryRun: false,
+        });
+        answers.codexSkillsStatus = 'synced';
+        answers.codexSkillsGenerated = codexSkillsResult.generated;
+        console.log(`✅ Codex skills: ${codexSkillsResult.generated} generated`);
+      } catch (codexSkillsError) {
+        console.warn(`⚠️  Codex skills sync failed: ${codexSkillsError.message} — run 'npm run sync:skills:codex' post-install`);
+        answers.codexSkillsStatus = 'failed';
+        answers.codexSkillsGenerated = 0;
+      }
+    } else {
+      answers.codexSkillsStatus = 'skipped';
       answers.codexSkillsGenerated = 0;
+      console.log('\nCodex skills sync: skipped (strict install without Codex)');
     }
 
     // Story INS-4.6: Entity Registry Bootstrap — populate entity-registry.yaml on install
@@ -736,13 +799,16 @@ async function runWizard(options = {}) {
       });
 
       // Story ACT-12: Write language to Claude Code settings.json
-      if (answers.language) {
+      if (answers.language && (!strictMode || isIdeSelected(answers, 'claude-code'))) {
         const langWritten = await writeClaudeSettings(answers.language);
         if (langWritten) {
           console.log('  - Language written to .claude/settings.json');
         } else {
           console.warn('  - Failed to write language to .claude/settings.json');
         }
+      } else if (answers.language) {
+        answers.languageSettingsSkipped = 'strict-non-claude';
+        console.log('  - Language setting skipped for .claude/settings.json');
       }
 
       if (envResult.envCreated && envResult.coreConfigCreated) {
@@ -908,42 +974,49 @@ async function runWizard(options = {}) {
     // }
 
     // Story 6.7: LLM Routing Installation
-    console.log('\nInstalling LLM Routing commands...');
-    try {
-      const {
-        installLLMRouting,
-        isLLMRoutingInstalled,
-      } = loadLLMRoutingInstaller();
-
-      // Check if already installed
-      if (isLLMRoutingInstalled()) {
-        console.log('   ℹ️  LLM Routing already installed');
-        answers.llmRoutingInstalled = true;
-        answers.llmRoutingResult = { success: true, alreadyInstalled: true };
-      } else {
-        const llmResult = installLLMRouting({
-          projectRoot: process.cwd(),
-          onProgress: (msg) => console.log(`   ${msg}`),
-          onError: (msg) => console.error(`   ${msg}`),
-        });
-
-        if (llmResult.success) {
-          console.log('\n✅ LLM Routing installed!');
-          console.log('   • claude-max  → Uses Claude Max subscription');
-          console.log('   • claude-free → Uses DeepSeek (~$0.14/M tokens)');
-          console.log('\n   💡 For claude-free, add DEEPSEEK_API_KEY to your .env');
-          answers.llmRoutingInstalled = true;
-          answers.llmRoutingResult = llmResult;
-        } else {
-          console.error('\n⚠️  LLM Routing installation had errors:');
-          llmResult.errors.forEach((err) => console.error(`   - ${err}`));
-          answers.llmRoutingInstalled = false;
-          answers.llmRoutingResult = llmResult;
-        }
-      }
-    } catch (error) {
-      console.error('\n⚠️  LLM Routing error:', error.message);
+    if (strictMode && !isIdeSelected(answers, 'claude-code')) {
       answers.llmRoutingInstalled = false;
+      answers.llmRoutingResult = { success: true, skipped: true, reason: 'strict-non-claude' };
+      console.log('\nLLM Routing commands: skipped (strict install without Claude Code)');
+    } else {
+      console.log('\nInstalling LLM Routing commands...');
+      try {
+        const {
+          installLLMRouting,
+          isLLMRoutingInstalled,
+        } = loadLLMRoutingInstaller();
+
+        // Check if already installed
+        if (isLLMRoutingInstalled()) {
+          console.log('   ℹ️  LLM Routing already installed');
+          answers.llmRoutingInstalled = true;
+          answers.llmRoutingResult = { success: true, alreadyInstalled: true };
+        } else {
+          const llmResult = installLLMRouting({
+            projectRoot: process.cwd(),
+            onProgress: (msg) => console.log(`   ${msg}`),
+            onError: (msg) => console.error(`   ${msg}`),
+          });
+
+          if (llmResult.success) {
+            console.log('\n✅ LLM Routing installed!');
+            console.log('   • claude-max  → Uses Claude Max subscription');
+            console.log('   • claude-free → Uses DeepSeek (~$0.14/M tokens)');
+            console.log('\n   💡 For claude-free, add DEEPSEEK_API_KEY to your .env');
+            answers.llmRoutingInstalled = true;
+            answers.llmRoutingResult = llmResult;
+          } else {
+            console.error('\n⚠️  LLM Routing installation had errors:');
+            llmResult.errors.forEach((err) => console.error(`   - ${err}`));
+            answers.llmRoutingInstalled = false;
+            answers.llmRoutingResult = llmResult;
+          }
+        }
+      } catch (error) {
+        console.error('\n⚠️  LLM Routing error:', error.message);
+        answers.llmRoutingInstalled = false;
+      }
+
     }
 
     // Story INS-3.2: Pro Installation Wizard (optional phase)
@@ -1108,6 +1181,8 @@ module.exports = {
   _testing: {
     writeClaudeSettings,
     getExistingLanguage,
+    resolveStrictInstallIde,
+    isIdeSelected,
     LANGUAGE_MAP,
   },
 };
